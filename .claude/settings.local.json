@@ -61,7 +61,11 @@
       "Bash(node generate-icons.js:*)",
       "Bash(npx serve -s dist -l 3000)",
       "Bash(npm uninstall:*)",
-      "Bash(git rm --cached interior-management-system)"
+      "Bash(git rm --cached interior-management-system)",
+      "Bash(gh auth status)",
+      "Bash(gh repo create hv-lab-app --public --source=. --remote=origin --push)",
+      "Bash(git remote remove origin)",
+      "Bash(start cmd /k \"cd /d \"\"C:\\Users\\kim_s\\Desktop\\HV LAB app\"\" && railway login\")"
     ],
     "deny": [],
     "ask": []
