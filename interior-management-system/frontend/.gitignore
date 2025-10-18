@@ -8,8 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-# dist folder is now tracked for faster deployment
-# dist
+dist
 dist-ssr
 *.local
 
