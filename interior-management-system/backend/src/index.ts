@@ -113,6 +113,40 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Temporary endpoint to create initial users (REMOVE IN PRODUCTION)
+app.post('/api/setup/create-initial-users', async (_req, res) => {
+  try {
+    const User = require('./models/User.model').default;
+    const users = [
+      { username: '상준', name: '상준', password: '0109', role: 'admin' },
+      { username: '신애', name: '신애', password: '0109', role: 'manager' },
+      { username: '재천', name: '재천', password: '0109', role: 'worker' },
+      { username: '민기', name: '민기', password: '0109', role: 'worker' },
+      { username: '재성', name: '재성', password: '0109', role: 'worker' },
+      { username: '재현', name: '재현', password: '0109', role: 'worker' }
+    ];
+
+    const createdUsers = [];
+    for (const userData of users) {
+      const existingUser = await User.findOne({ username: userData.username });
+      if (!existingUser) {
+        const user = new User(userData);
+        await user.save();
+        createdUsers.push(userData.username);
+      }
+    }
+
+    res.json({
+      message: 'Users created successfully',
+      created: createdUsers,
+      total: users.length
+    });
+  } catch (error) {
+    console.error('Error creating users:', error);
+    res.status(500).json({ error: 'Failed to create users' });
+  }
+});
+
 // Error handling middleware
 app.use(notFound);
 app.use(errorHandler);
