@@ -65,7 +65,10 @@
       "Bash(gh auth status)",
       "Bash(gh repo create hv-lab-app --public --source=. --remote=origin --push)",
       "Bash(git remote remove origin)",
-      "Bash(start cmd /k \"cd /d \"\"C:\\Users\\kim_s\\Desktop\\HV LAB app\"\" && railway login\")"
+      "Bash(start cmd /k \"cd /d \"\"C:\\Users\\kim_s\\Desktop\\HV LAB app\"\" && railway login\")",
+      "Bash(git fetch railway main)",
+      "Bash(git rm -r --cached frontend/dist)",
+      "Bash(git pull railway main)"
     ],
     "deny": [],
     "ask": []
