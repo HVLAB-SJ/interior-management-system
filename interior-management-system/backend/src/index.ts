@@ -104,12 +104,15 @@ app.use('/api/construction-payments', constructionPaymentRoutes);
 app.use('/api/workrequests', workRequestRoutes);
 app.use('/api/additional-works', additionalWorkRoutes);
 
-// Health check endpoint
+// Health check endpoint with version info
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    version: '1.0.1',
+    service: 'HV LAB Interior Management API',
+    uptime: process.uptime()
   });
 });
 
