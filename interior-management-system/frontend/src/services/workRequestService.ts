@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
 export interface WorkRequestData {
   project: string;
@@ -36,19 +34,19 @@ export interface WorkRequestResponse {
 const workRequestService = {
   // Get all work requests
   getAllWorkRequests: async (): Promise<WorkRequestResponse[]> => {
-    const response = await axios.get(`${API_URL}/workrequests`);
+    const response = await api.get('/workrequests');
     return response.data;
   },
 
   // Get single work request
   getWorkRequestById: async (id: string): Promise<WorkRequestResponse> => {
-    const response = await axios.get(`${API_URL}/workrequests/${id}`);
+    const response = await api.get(`/workrequests/${id}`);
     return response.data;
   },
 
   // Create work request
   createWorkRequest: async (data: WorkRequestData): Promise<WorkRequestResponse> => {
-    const response = await axios.post(`${API_URL}/workrequests`, {
+    const response = await api.post('/workrequests', {
       project: data.project,
       requestType: data.requestType,
       description: data.description,
@@ -66,13 +64,13 @@ const workRequestService = {
 
   // Update work request
   updateWorkRequest: async (id: string, data: Partial<WorkRequestData>): Promise<WorkRequestResponse> => {
-    const response = await axios.put(`${API_URL}/workrequests/${id}`, data);
+    const response = await api.put(`/workrequests/${id}`, data);
     return response.data;
   },
 
   // Delete work request
   deleteWorkRequest: async (id: string): Promise<void> => {
-    await axios.delete(`${API_URL}/workrequests/${id}`);
+    await api.delete(`/workrequests/${id}`);
   }
 };
 

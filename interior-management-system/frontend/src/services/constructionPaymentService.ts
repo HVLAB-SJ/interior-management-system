@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
 export interface ConstructionPaymentData {
   project: string;
@@ -40,31 +38,31 @@ export interface ConstructionPaymentResponse {
 const constructionPaymentService = {
   // Get all construction payments
   getAllConstructionPayments: async (): Promise<ConstructionPaymentResponse[]> => {
-    const response = await axios.get(`${API_URL}/construction-payments`);
+    const response = await api.get('/construction-payments');
     return response.data;
   },
 
   // Get single construction payment
   getConstructionPaymentById: async (id: string): Promise<ConstructionPaymentResponse> => {
-    const response = await axios.get(`${API_URL}/construction-payments/${id}`);
+    const response = await api.get(`/construction-payments/${id}`);
     return response.data;
   },
 
   // Create construction payment
   createConstructionPayment: async (data: ConstructionPaymentData): Promise<ConstructionPaymentResponse> => {
-    const response = await axios.post(`${API_URL}/construction-payments`, data);
+    const response = await api.post('/construction-payments', data);
     return response.data;
   },
 
   // Update construction payment
   updateConstructionPayment: async (id: string, data: Partial<ConstructionPaymentData>): Promise<ConstructionPaymentResponse> => {
-    const response = await axios.put(`${API_URL}/construction-payments/${id}`, data);
+    const response = await api.put(`/construction-payments/${id}`, data);
     return response.data;
   },
 
   // Delete construction payment
   deleteConstructionPayment: async (id: string): Promise<void> => {
-    await axios.delete(`${API_URL}/construction-payments/${id}`);
+    await api.delete(`/construction-payments/${id}`);
   }
 };
 

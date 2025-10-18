@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
 export interface PaymentData {
   projectId: string;
@@ -61,19 +59,19 @@ export interface PaymentResponse {
 const paymentService = {
   // Get all payments
   getAllPayments: async (): Promise<PaymentResponse[]> => {
-    const response = await axios.get(`${API_URL}/payments`);
+    const response = await api.get('/payments');
     return response.data;
   },
 
   // Get single payment
   getPaymentById: async (id: string): Promise<PaymentResponse> => {
-    const response = await axios.get(`${API_URL}/payments/${id}`);
+    const response = await api.get(`/payments/${id}`);
     return response.data;
   },
 
   // Create payment
   createPayment: async (data: PaymentData): Promise<PaymentResponse> => {
-    const response = await axios.post(`${API_URL}/payments`, {
+    const response = await api.post('/payments', {
       project: data.projectId,
       purpose: data.purpose,
       process: data.process,
@@ -91,19 +89,19 @@ const paymentService = {
 
   // Update payment
   updatePayment: async (id: string, data: Partial<PaymentData>): Promise<PaymentResponse> => {
-    const response = await axios.put(`${API_URL}/payments/${id}`, data);
+    const response = await api.put(`/payments/${id}`, data);
     return response.data;
   },
 
   // Update payment status
   updatePaymentStatus: async (id: string, status: string): Promise<PaymentResponse> => {
-    const response = await axios.put(`${API_URL}/payments/${id}/status`, { status });
+    const response = await api.put(`/payments/${id}/status`, { status });
     return response.data;
   },
 
   // Delete payment
   deletePayment: async (id: string): Promise<void> => {
-    await axios.delete(`${API_URL}/payments/${id}`);
+    await api.delete(`/payments/${id}`);
   }
 };
 

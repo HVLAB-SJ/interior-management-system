@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from './api';
 
 export interface ASRequestData {
   project: string;
@@ -38,31 +36,31 @@ export interface ASRequestResponse {
 const asRequestService = {
   // Get all AS requests
   getAllASRequests: async (): Promise<ASRequestResponse[]> => {
-    const response = await axios.get(`${API_URL}/as-requests`);
+    const response = await api.get('/as-requests');
     return response.data;
   },
 
   // Get single AS request
   getASRequestById: async (id: string): Promise<ASRequestResponse> => {
-    const response = await axios.get(`${API_URL}/as-requests/${id}`);
+    const response = await api.get(`/as-requests/${id}`);
     return response.data;
   },
 
   // Create AS request
   createASRequest: async (data: ASRequestData): Promise<ASRequestResponse> => {
-    const response = await axios.post(`${API_URL}/as-requests`, data);
+    const response = await api.post('/as-requests', data);
     return response.data;
   },
 
   // Update AS request
   updateASRequest: async (id: string, data: Partial<ASRequestData>): Promise<ASRequestResponse> => {
-    const response = await axios.put(`${API_URL}/as-requests/${id}`, data);
+    const response = await api.put(`/as-requests/${id}`, data);
     return response.data;
   },
 
   // Delete AS request
   deleteASRequest: async (id: string): Promise<void> => {
-    await axios.delete(`${API_URL}/as-requests/${id}`);
+    await api.delete(`/as-requests/${id}`);
   }
 };
 
