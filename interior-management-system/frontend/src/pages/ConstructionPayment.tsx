@@ -35,10 +35,15 @@ const ConstructionPayment = () => {
 
   // Load construction payments from API on mount
   useEffect(() => {
-    loadConstructionPaymentsFromAPI().catch(error => {
-      console.error('Failed to load construction payments:', error);
-      toast.error('공사대금 데이터를 불러오는데 실패했습니다');
-    });
+    console.log('💰 ConstructionPayment: Loading payments from API...');
+    loadConstructionPaymentsFromAPI()
+      .then(() => {
+        console.log('💰 ConstructionPayment: Payments loaded successfully');
+      })
+      .catch(error => {
+        console.error('💰 ConstructionPayment: Failed to load construction payments:', error);
+        toast.error('공사대금 데이터를 불러오는데 실패했습니다');
+      });
   }, [loadConstructionPaymentsFromAPI]);
 
   // 헤더의 + 버튼 클릭 이벤트 수신
@@ -53,13 +58,19 @@ const ConstructionPayment = () => {
 
   // Sync local state with dataStore, normalize data, and remove orphaned records
   useEffect(() => {
+    console.log('💰 ConstructionPayment: Syncing with dataStore');
+    console.log('💰 constructionPayments:', constructionPayments);
+    console.log('💰 projects:', projects);
+
     // Get valid project names
     const validProjectNames = projects.map(p => p.name);
+    console.log('💰 Valid project names:', validProjectNames);
 
     // Filter out records that don't have corresponding projects
     const validRecords = constructionPayments.filter(record =>
       validProjectNames.includes(record.project)
     );
+    console.log('💰 Valid records after filtering:', validRecords);
 
     // Normalize the valid records
     const normalizedRecords = validRecords.map(record => ({
@@ -73,6 +84,7 @@ const ConstructionPayment = () => {
         type: payment.type || payment.types?.[0] || '계약금'
       }))
     }));
+    console.log('💰 Normalized records:', normalizedRecords);
 
     // If orphaned records were found, delete them from the store
     if (validRecords.length < constructionPayments.length) {
