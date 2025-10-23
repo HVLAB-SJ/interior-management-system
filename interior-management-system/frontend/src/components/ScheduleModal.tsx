@@ -172,6 +172,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     console.log('🔴 Form onSubmit called with data:', data);
     console.log('🔴 customProjectName:', customProjectName);
     console.log('🔴 selectedMembers:', selectedMembers);
+    console.log('🔴 Available projects:', projects.map(p => ({ id: p.id, name: p.name, idType: typeof p.id })));
 
     let projectName = '';
     let projectId = '';
@@ -180,9 +181,16 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       // 직접 입력한 경우
       projectName = customProjectName || '';
       projectId = 'custom';
-    } else {
+    } else if (data.projectId) {
       // 기존 프로젝트를 선택한 경우
-      const selectedProject = projects.find(p => p.id === data.projectId);
+      // ID는 문자열 또는 숫자일 수 있으므로 둘 다 비교
+      const selectedProject = projects.find(p =>
+        p.id === data.projectId ||
+        p.id === parseInt(data.projectId) ||
+        p.id.toString() === data.projectId.toString()
+      );
+      console.log('🔴 Looking for project with id:', data.projectId, 'type:', typeof data.projectId);
+      console.log('🔴 Found project:', selectedProject);
       projectName = selectedProject?.name || '';
       projectId = data.projectId;
     }
