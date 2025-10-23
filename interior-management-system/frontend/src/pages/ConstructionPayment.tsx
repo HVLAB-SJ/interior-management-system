@@ -431,8 +431,8 @@ const ConstructionPayment = () => {
   // 검색 및 탭 필터링
   const filteredRecords = records
     .filter(record =>
-      record.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.client.toLowerCase().includes(searchTerm.toLowerCase())
+      (record.project || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (record.client || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
     .filter(record => {
       if (activeTab === 'all') return true;
