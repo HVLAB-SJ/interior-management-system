@@ -126,7 +126,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event?.id, slotInfo?.start]); // event.id와 slotInfo.start가 변경될 때만 재실행
+  }, [event?.id, event?.projectId, event?.projectName, slotInfo?.start, projects]); // event 프로젝트 정보와 projects 배열 변경 시에도 재실행
 
   const toggleMember = (member: string) => {
     setSelectedMembers(prev =>
