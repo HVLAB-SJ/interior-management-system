@@ -46,6 +46,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       console.log('🟢 ScheduleModal processing event:', {
         title: event.title,
         projectId: event.projectId,
+        projectName: event.projectName,
         assignedTo: event.assignedTo,
         attendees: event.attendees,
         time: event.time,  // 시간 데이터 확인
@@ -54,14 +55,25 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       setValue('title', event.title);
       // projectId가 있으면 사용, 없으면 projectName으로 찾기
       if (event.projectId === 'custom' && event.projectName) {
+        console.log('🔵 Setting custom project:', event.projectName);
         setValue('projectId', 'custom');
         setCustomProjectName(event.projectName);
-      } else if (event.projectId) {
+      } else if (event.projectId && event.projectId !== '') {
+        // projectId가 있고 빈 문자열이 아닌 경우
+        console.log('🔵 Setting projectId from event:', event.projectId);
         setValue('projectId', event.projectId);
       } else if (event.projectName) {
+        // projectName으로 프로젝트 찾기
         const project = projects.find(p => p.name === event.projectName);
+        console.log('🔵 Finding project by name:', event.projectName, 'found:', project);
         if (project) {
+          console.log('🔵 Setting projectId from found project:', project.id);
           setValue('projectId', project.id);
+        } else {
+          // 프로젝트를 찾지 못한 경우 custom으로 설정
+          console.log('🔵 Project not found, setting as custom');
+          setValue('projectId', 'custom');
+          setCustomProjectName(event.projectName);
         }
       }
       setValue('date', format(event.start, 'yyyy-MM-dd'));
