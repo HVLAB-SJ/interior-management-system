@@ -16,7 +16,14 @@ interface ScheduleModalProps {
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
 
 const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, onDelete }: ScheduleModalProps) => {
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm();
+  const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm({
+    defaultValues: {
+      projectId: '',
+      title: '',
+      date: '',
+      description: ''
+    }
+  });
   const { projects } = useDataStore();
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [customMember, setCustomMember] = useState('');
@@ -30,15 +37,10 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
 
   // 모달이 열릴 때 초기 설정
   useEffect(() => {
-    const windowWidth = window.innerWidth;
-    const deviceType = windowWidth < 768 ? 'mobile' : windowWidth < 1024 ? 'tablet' : 'desktop';
-
     console.log('🟢 ScheduleModal useEffect triggered:', {
       hasEvent: !!event,
       eventId: event?.id,
-      hasSlotInfo: !!slotInfo,
-      deviceType,
-      windowWidth
+      hasSlotInfo: !!slotInfo
     });
 
     // event가 있으면 기존 일정 수정 모드
@@ -47,37 +49,36 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
         title: event.title,
         projectId: event.projectId,
         projectName: event.projectName,
+        start: event.start,
         assignedTo: event.assignedTo,
-        attendees: event.attendees,
-        time: event.time,  // 시간 데이터 확인
-        hasTime: event.time && event.time !== '-'
+        time: event.time
       });
-      setValue('title', event.title);
-      // projectId가 있으면 사용, 없으면 projectName으로 찾기
+
+      // 폼 필드 설정
+      setValue('title', event.title, { shouldValidate: false, shouldDirty: false });
+      setValue('date', format(event.start, 'yyyy-MM-dd'), { shouldValidate: false, shouldDirty: false });
+      setValue('description', event.description || '', { shouldValidate: false, shouldDirty: false });
+
+      // projectId 설정
       if (event.projectId === 'custom' && event.projectName) {
         console.log('🔵 Setting custom project:', event.projectName);
-        setValue('projectId', 'custom');
+        setValue('projectId', 'custom', { shouldValidate: false, shouldDirty: false });
         setCustomProjectName(event.projectName);
       } else if (event.projectId && event.projectId !== '') {
-        // projectId가 있고 빈 문자열이 아닌 경우
         console.log('🔵 Setting projectId from event:', event.projectId);
-        setValue('projectId', event.projectId);
+        setValue('projectId', event.projectId, { shouldValidate: false, shouldDirty: false });
       } else if (event.projectName) {
-        // projectName으로 프로젝트 찾기
         const project = projects.find(p => p.name === event.projectName);
         console.log('🔵 Finding project by name:', event.projectName, 'found:', project);
         if (project) {
           console.log('🔵 Setting projectId from found project:', project.id);
-          setValue('projectId', project.id);
+          setValue('projectId', project.id, { shouldValidate: false, shouldDirty: false });
         } else {
-          // 프로젝트를 찾지 못한 경우 custom으로 설정
           console.log('🔵 Project not found, setting as custom');
-          setValue('projectId', 'custom');
+          setValue('projectId', 'custom', { shouldValidate: false, shouldDirty: false });
           setCustomProjectName(event.projectName);
         }
       }
-      setValue('date', format(event.start, 'yyyy-MM-dd'));
-      setValue('description', event.description || '');
       // assignedTo와 attendees 둘 다 확인
       const members = event.assignedTo || event.attendees || [];
       console.log('🟢 Setting selectedMembers to:', members);
@@ -121,9 +122,17 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     } else if (slotInfo && !event) {
       // 새로운 일정 추가 모드 (event가 없고 slotInfo만 있을 때)
       console.log('🟢 New schedule from slot:', slotInfo);
-      setValue('date', format(slotInfo.start, 'yyyy-MM-dd'));
+
+      // 폼 리셋
+      reset({
+        projectId: '',
+        title: '',
+        date: format(slotInfo.start, 'yyyy-MM-dd'),
+        description: ''
+      });
+
       setSelectedMembers([]);
-      // Reset to default values for new events
+      setCustomProjectName('');
       setHasTime(false);
       setTimePeriod('오전');
       setTimeHour(9);
@@ -133,7 +142,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       if (defaultProjectName) {
         const defaultProject = projects.find(p => p.name === defaultProjectName);
         if (defaultProject) {
-          setValue('projectId', defaultProject.id);
+          setValue('projectId', defaultProject.id, { shouldValidate: false, shouldDirty: false });
         }
       }
     }
@@ -160,6 +169,10 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
   };
 
   const onSubmit = (data: any) => {
+    console.log('🔴 Form onSubmit called with data:', data);
+    console.log('🔴 customProjectName:', customProjectName);
+    console.log('🔴 selectedMembers:', selectedMembers);
+
     let projectName = '';
     let projectId = '';
 
@@ -173,6 +186,8 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       projectName = selectedProject?.name || '';
       projectId = data.projectId;
     }
+
+    console.log('🔴 Final projectId:', projectId, 'projectName:', projectName);
 
     const eventDate = new Date(data.date);
 
@@ -204,6 +219,8 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       time: timeString,
       color: '#6B7280'
     };
+
+    console.log('🔴 Calling onSave with newEvent:', newEvent);
     onSave(newEvent);
   };
 
