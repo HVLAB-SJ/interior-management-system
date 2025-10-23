@@ -1150,15 +1150,17 @@ const Schedule = () => {
               setSelectedSlot(null);
             }}
             onSave={async (newEvent: any) => {
+              console.log('📤 Schedule.tsx onSave called with newEvent:', newEvent);
               try {
                 if (selectedEvent) {
                   // 수정
+                  console.log('📤 Updating schedule with projectId:', newEvent.projectId, 'projectName:', newEvent.projectName);
                   await updateScheduleInAPI(selectedEvent.id, {
                     title: newEvent.title,
                     start: newEvent.start,
                     end: newEvent.end,
                     type: 'other',
-                    project: newEvent.projectName,
+                    project: newEvent.projectId || newEvent.projectName,  // projectId 우선 사용
                     location: '',
                     attendees: newEvent.assignedTo || [],
                     description: newEvent.description,
@@ -1169,13 +1171,14 @@ const Schedule = () => {
                   toast.success('일정이 수정되었습니다');
                 } else {
                   // 추가
+                  console.log('📤 Adding schedule with projectId:', newEvent.projectId, 'projectName:', newEvent.projectName);
                   await addScheduleToAPI({
                     id: Date.now().toString(),
                     title: newEvent.title,
                     start: newEvent.start,
                     end: newEvent.end,
                     type: 'other',
-                    project: newEvent.projectName,
+                    project: newEvent.projectId || newEvent.projectName,  // projectId 우선 사용
                     location: '',
                     attendees: newEvent.assignedTo || [],
                     description: newEvent.description,
