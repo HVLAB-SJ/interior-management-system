@@ -259,9 +259,21 @@ const ConstructionPayment = () => {
   };
 
   const handleSaveProject = async () => {
+    console.log('💰 handleSaveProject called');
+    console.log('💰 newProject:', newProject);
+    console.log('💰 projects:', projects);
+
     const selectedProject = projects.find(p => p.id === newProject.projectId);
-    if (!selectedProject || newProject.totalAmount <= 0) {
-      alert('프로젝트와 총 공사금액을 입력하세요');
+    console.log('💰 selectedProject:', selectedProject);
+    console.log('💰 totalAmount:', newProject.totalAmount, 'type:', typeof newProject.totalAmount);
+
+    if (!selectedProject) {
+      alert('프로젝트를 선택하세요');
+      return;
+    }
+
+    if (newProject.totalAmount <= 0) {
+      alert('총 공사금액을 입력하세요 (0보다 커야 합니다)');
       return;
     }
 
