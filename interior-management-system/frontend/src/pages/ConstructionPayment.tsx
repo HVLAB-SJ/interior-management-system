@@ -263,7 +263,12 @@ const ConstructionPayment = () => {
     console.log('💰 newProject:', newProject);
     console.log('💰 projects:', projects);
 
-    const selectedProject = projects.find(p => p.id === newProject.projectId);
+    // ID 타입 안전하게 비교 (문자열/숫자 모두 처리)
+    const selectedProject = projects.find(p =>
+      p.id === newProject.projectId ||
+      p.id === parseInt(newProject.projectId) ||
+      p.id.toString() === newProject.projectId.toString()
+    );
     console.log('💰 selectedProject:', selectedProject);
     console.log('💰 totalAmount:', newProject.totalAmount, 'type:', typeof newProject.totalAmount);
 
