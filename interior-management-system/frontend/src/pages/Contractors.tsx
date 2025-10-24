@@ -3,12 +3,20 @@ import { type Contractor } from '../store/dataStore';
 import { X, Edit2, Trash2, Search } from 'lucide-react';
 import contractorService from '../services/contractorService';
 
-// Extract Korean position title from name (e.g., "김혁실장" -> "실장")
+// Extract Korean position title from name (e.g., "김혁실장" -> "실장", "염동호 사장님" -> "사장")
 const extractPosition = (name: string): string => {
-  const positions = ['대표이사', '부사장', '전무', '상무', '이사', '실장', '부장', '차장', '과장', '대리', '주임', '사원', '팀장', '소장', '대표'];
+  // Remove "님" suffix first if present
+  const cleanName = name.replace(/님$/g, '').trim();
+
+  // List of positions to match (ordered by length to match longer ones first)
+  const positions = [
+    '대표이사', '부사장', '전무', '상무', '이사', '실장', '부장', '차장', '과장', '대리',
+    '주임', '사원', '팀장', '소장', '대표', '사장', '회장', '반장', '현장', '본부장',
+    '팀원', '파트장', '조장', '감독', '기사', '수석', '책임'
+  ];
 
   for (const position of positions) {
-    if (name.endsWith(position)) {
+    if (cleanName.endsWith(position)) {
       return position;
     }
   }
