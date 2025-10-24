@@ -28,7 +28,7 @@ type TabStatus = 'pending' | 'in-progress' | 'completed' | 'all';
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
 
 const WorkRequest = () => {
-  const { addScheduleToAPI, deleteScheduleFromAPI, schedules, projects } = useDataStore();
+  const { addScheduleToAPI, deleteScheduleFromAPI, updateScheduleInAPI, schedules, projects } = useDataStore();
   const [requests, setRequests] = useState<WorkRequest[]>([]);
 
   const [showModal, setShowModal] = useState(false);
@@ -172,6 +172,32 @@ const WorkRequest = () => {
           notes: updated.notes,
           completedDate: updated.completedDate ? new Date(updated.completedDate) : undefined
         };
+
+        // 관련 일정 찾아서 업데이트
+        const relatedSchedule = schedules.find(s =>
+          s.id === `workrequest-${updated._id}` ||
+          (s.title.includes(`[업무요청]`) && s.title.includes(updated.requestType))
+        );
+
+        if (relatedSchedule) {
+          try {
+            // 프로젝트 ID 찾기
+            const matchingProject = projects.find(p => p.name === updated.project);
+            const projectId = matchingProject ? matchingProject.id : relatedSchedule.project;
+
+            await updateScheduleInAPI(relatedSchedule.id, {
+              title: `[업무요청] ${updated.requestType}`,
+              start: new Date(updated.dueDate),
+              end: new Date(updated.dueDate),
+              project: projectId,
+              attendees: [updated.assignedTo],
+              description: `${updated.description}\n\n담당자: ${updated.assignedTo}\n요청자: ${updated.requestedBy}\n우선순위: ${updated.priority}\n${updated.notes || ''}`
+            });
+            console.log('✅ Related schedule updated:', relatedSchedule.id);
+          } catch (schedError) {
+            console.error('Failed to update related schedule:', schedError);
+          }
+        }
 
         setRequests(requests.map(req =>
           req.id === selectedRequest.id ? updatedRequest : req

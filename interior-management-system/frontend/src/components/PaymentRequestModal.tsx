@@ -323,7 +323,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               {projects
                 .filter(project => project.status !== 'completed')
                 .map((project) => (
-                  <option key={project.id} value={project.name}>
+                  <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
                 ))}
@@ -503,7 +503,8 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               className="input"
               placeholder="0"
               onChange={(e) => {
-                const value = parseFloat(e.target.value) || 0;
+                const value = parseInt(e.target.value) || 0;
+                console.log('Material amount input:', e.target.value, '→', value);
                 setMaterialAmount(value);
               }}
             />
@@ -520,7 +521,8 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               className="input"
               placeholder="0"
               onChange={(e) => {
-                const value = parseFloat(e.target.value) || 0;
+                const value = parseInt(e.target.value) || 0;
+                console.log('Labor amount input:', e.target.value, '→', value, 'applyTaxDeduction:', applyTaxDeduction);
                 setOriginalLaborAmount(value);
                 if (applyTaxDeduction) {
                   const deductedAmount = Math.round(value * 0.967);

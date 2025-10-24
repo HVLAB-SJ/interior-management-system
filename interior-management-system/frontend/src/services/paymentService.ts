@@ -19,41 +19,27 @@ export interface PaymentData {
 }
 
 export interface PaymentResponse {
-  _id: string;
-  project: {
-    _id: string;
-    name: string;
-  };
-  requestedBy: {
-    _id: string;
-    name: string;
-    email: string;
-  };
-  approvedBy?: {
-    _id: string;
-    name: string;
-  };
+  id: number;
+  project_id: number;
+  project_name: string;
+  project_color: string;
+  user_id: number;
+  requester_name: string;
+  approver_name?: string;
+  approved_by?: number;
+  request_type: string;
+  vendor_name: string;
+  description: string;
   amount: number;
-  purpose: string;
-  process?: string;
-  itemName?: string;
-  category: string;
+  account_holder: string;
+  bank_name: string;
+  account_number: string;
+  notes: string;
   status: 'pending' | 'reviewing' | 'approved' | 'on-hold' | 'rejected' | 'completed';
-  urgency: string;
-  bankInfo?: {
-    accountHolder: string;
-    bankName: string;
-    accountNumber: string;
-  };
-  requestDate: string;
-  approvalDate?: string;
-  completionDate?: string;
-  notes?: string;
-  attachments: Array<{
-    name: string;
-    url: string;
-    type: string;
-  }>;
+  created_at: string;
+  updated_at: string;
+  approved_at?: string;
+  paid_at?: string;
 }
 
 const paymentService = {

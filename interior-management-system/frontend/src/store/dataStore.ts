@@ -301,20 +301,24 @@ export const useDataStore = create<DataStore>()(
     try {
       const apiPayments = await paymentService.getAllPayments();
       const payments: Payment[] = apiPayments.map((p: PaymentResponse) => ({
-        id: p._id,
-        project: typeof p.project === 'object' ? p.project.name : p.project,
-        purpose: p.purpose,
-        process: p.process,
-        itemName: p.itemName,
+        id: String(p.id),
+        project: p.project_name,
+        purpose: p.description,
+        process: p.vendor_name,
+        itemName: '',
         amount: p.amount,
-        category: p.category as Payment['category'],
+        category: p.request_type as Payment['category'],
         status: p.status,
-        urgency: p.urgency as Payment['urgency'],
-        requestedBy: typeof p.requestedBy === 'object' ? p.requestedBy.name : p.requestedBy,
-        requestDate: new Date(p.requestDate),
-        approvalDate: p.approvalDate ? new Date(p.approvalDate) : undefined,
-        bankInfo: p.bankInfo,
-        attachments: p.attachments?.map(a => a.name) || [],
+        urgency: 'normal' as Payment['urgency'],
+        requestedBy: p.requester_name,
+        requestDate: new Date(p.created_at),
+        approvalDate: p.approved_at ? new Date(p.approved_at) : undefined,
+        bankInfo: {
+          accountHolder: p.account_holder,
+          bankName: p.bank_name,
+          accountNumber: p.account_number
+        },
+        attachments: [],
         notes: p.notes
       }));
       set({ payments });
@@ -326,7 +330,7 @@ export const useDataStore = create<DataStore>()(
 
   addPaymentToAPI: async (payment: Payment) => {
     try {
-      const apiPayment = await paymentService.createPayment({
+      await paymentService.createPayment({
         projectId: payment.project,
         purpose: payment.purpose,
         process: payment.process,
@@ -340,25 +344,30 @@ export const useDataStore = create<DataStore>()(
         attachments: []
       });
 
-      // Convert and add to store
-      const newPayment: Payment = {
-        id: apiPayment._id,
-        project: typeof apiPayment.project === 'object' ? apiPayment.project.name : apiPayment.project,
-        purpose: apiPayment.purpose,
-        process: apiPayment.process,
-        itemName: apiPayment.itemName,
-        amount: apiPayment.amount,
-        category: apiPayment.category as Payment['category'],
-        status: apiPayment.status,
-        urgency: apiPayment.urgency as Payment['urgency'],
-        requestedBy: typeof apiPayment.requestedBy === 'object' ? apiPayment.requestedBy.name : apiPayment.requestedBy,
-        requestDate: new Date(apiPayment.requestDate),
-        bankInfo: apiPayment.bankInfo,
-        attachments: apiPayment.attachments?.map(a => a.name) || [],
-        notes: apiPayment.notes
-      };
-
-      set((state) => ({ payments: [newPayment, ...state.payments] }));
+      // Reload all payments from API to get the updated list
+      const apiPayments = await paymentService.getAllPayments();
+      const payments: Payment[] = apiPayments.map((p: PaymentResponse) => ({
+        id: String(p.id),
+        project: p.project_name,
+        purpose: p.description,
+        process: p.vendor_name,
+        itemName: '',
+        amount: p.amount,
+        category: p.request_type as Payment['category'],
+        status: p.status,
+        urgency: 'normal' as Payment['urgency'],
+        requestedBy: p.requester_name,
+        requestDate: new Date(p.created_at),
+        approvalDate: p.approved_at ? new Date(p.approved_at) : undefined,
+        bankInfo: {
+          accountHolder: p.account_holder,
+          bankName: p.bank_name,
+          accountNumber: p.account_number
+        },
+        attachments: [],
+        notes: p.notes
+      }));
+      set({ payments });
     } catch (error) {
       console.error('Failed to add payment to API:', error);
       throw error;
@@ -367,7 +376,7 @@ export const useDataStore = create<DataStore>()(
 
   updatePaymentInAPI: async (id: string, updatedPayment: Partial<Payment>) => {
     try {
-      const apiPayment = await paymentService.updatePayment(id, {
+      await paymentService.updatePayment(id, {
         projectId: updatedPayment.project,
         purpose: updatedPayment.purpose,
         process: updatedPayment.process,
@@ -379,28 +388,30 @@ export const useDataStore = create<DataStore>()(
         notes: updatedPayment.notes
       });
 
-      // Convert and update in store
-      const payment: Payment = {
-        id: apiPayment._id,
-        project: typeof apiPayment.project === 'object' ? apiPayment.project.name : apiPayment.project,
-        purpose: apiPayment.purpose,
-        process: apiPayment.process,
-        itemName: apiPayment.itemName,
-        amount: apiPayment.amount,
-        category: apiPayment.category as Payment['category'],
-        status: apiPayment.status,
-        urgency: apiPayment.urgency as Payment['urgency'],
-        requestedBy: typeof apiPayment.requestedBy === 'object' ? apiPayment.requestedBy.name : apiPayment.requestedBy,
-        requestDate: new Date(apiPayment.requestDate),
-        approvalDate: apiPayment.approvalDate ? new Date(apiPayment.approvalDate) : undefined,
-        bankInfo: apiPayment.bankInfo,
-        attachments: apiPayment.attachments?.map(a => a.name) || [],
-        notes: apiPayment.notes
-      };
-
-      set((state) => ({
-        payments: state.payments.map((p) => (p.id === id ? payment : p))
+      // Reload all payments from API to get the updated list
+      const apiPayments = await paymentService.getAllPayments();
+      const payments: Payment[] = apiPayments.map((p: PaymentResponse) => ({
+        id: String(p.id),
+        project: p.project_name,
+        purpose: p.description,
+        process: p.vendor_name,
+        itemName: '',
+        amount: p.amount,
+        category: p.request_type as Payment['category'],
+        status: p.status,
+        urgency: 'normal' as Payment['urgency'],
+        requestedBy: p.requester_name,
+        requestDate: new Date(p.created_at),
+        approvalDate: p.approved_at ? new Date(p.approved_at) : undefined,
+        bankInfo: {
+          accountHolder: p.account_holder,
+          bankName: p.bank_name,
+          accountNumber: p.account_number
+        },
+        attachments: [],
+        notes: p.notes
       }));
+      set({ payments });
     } catch (error) {
       console.error('Failed to update payment in API:', error);
       throw error;

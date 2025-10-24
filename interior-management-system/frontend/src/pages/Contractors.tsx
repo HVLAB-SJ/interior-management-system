@@ -3,17 +3,17 @@ import { type Contractor } from '../store/dataStore';
 import { X, Edit2, Trash2, Search } from 'lucide-react';
 import contractorService from '../services/contractorService';
 
+// List of Korean position titles (ordered by length to match longer ones first)
+const positions = [
+  '대표이사', '부사장', '전무', '상무', '이사', '실장', '부장', '차장', '과장', '대리',
+  '주임', '사원', '팀장', '소장', '대표', '사장', '회장', '반장', '현장', '본부장',
+  '팀원', '파트장', '조장', '감독', '기사', '수석', '책임'
+];
+
 // Extract Korean position title from name (e.g., "김혁실장" -> "실장", "염동호 사장님" -> "사장")
 const extractPosition = (name: string): string => {
   // Remove "님" suffix first if present
   const cleanName = name.replace(/님$/g, '').trim();
-
-  // List of positions to match (ordered by length to match longer ones first)
-  const positions = [
-    '대표이사', '부사장', '전무', '상무', '이사', '실장', '부장', '차장', '과장', '대리',
-    '주임', '사원', '팀장', '소장', '대표', '사장', '회장', '반장', '현장', '본부장',
-    '팀원', '파트장', '조장', '감독', '기사', '수석', '책임'
-  ];
 
   for (const position of positions) {
     if (cleanName.endsWith(position)) {
@@ -22,6 +22,23 @@ const extractPosition = (name: string): string => {
   }
 
   return '';
+};
+
+// Remove position from name (e.g., "김혁실장" -> "김혁", "염동호 사장님" -> "염동호")
+const removePosition = (name: string): string => {
+  if (!name) return name;
+
+  // Remove "님" suffix first if present
+  let cleanName = name.replace(/님$/g, '').trim();
+
+  // Remove position if found at the end
+  for (const position of positions) {
+    if (cleanName.endsWith(position)) {
+      return cleanName.substring(0, cleanName.length - position.length).trim();
+    }
+  }
+
+  return cleanName;
 };
 
 export default function Contractors() {
@@ -385,7 +402,7 @@ export default function Contractors() {
                       <div className="text-sm text-gray-900">{contractor.companyName || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900">{contractor.name}</div>
+                      <div className="font-medium text-gray-900">{removePosition(contractor.name)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{contractor.position || extractPosition(contractor.name) || '-'}</div>
@@ -460,7 +477,7 @@ export default function Contractors() {
                   {contractor.companyName && (
                     <p className="text-xs text-gray-600 mb-0.5">{contractor.companyName}</p>
                   )}
-                  <p className="font-semibold text-gray-900 text-sm">{contractor.name}</p>
+                  <p className="font-semibold text-gray-900 text-sm">{removePosition(contractor.name)}</p>
                 </div>
                 <div className="flex items-center gap-2 ml-2">
                   <button
