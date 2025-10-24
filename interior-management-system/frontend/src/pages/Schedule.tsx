@@ -1038,7 +1038,7 @@ const Schedule = () => {
               onSelectEvent={onSelectEvent}
               onSelectSlot={onSelectSlot}
               selectable={true}
-              longPressThreshold={50}
+              longPressThreshold={0}
               eventPropGetter={eventStyleGetter}
               dayPropGetter={dayPropGetter}
               components={calendarComponents}
