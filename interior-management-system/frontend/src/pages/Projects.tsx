@@ -50,7 +50,9 @@ const Projects = () => {
     return () => window.removeEventListener('headerAddButtonClick', handleHeaderAddButton);
   }, []);
 
-  const calculateProgress = (startDate: Date, endDate: Date): number => {
+  const calculateProgress = (startDate: Date | undefined, endDate: Date | undefined): number => {
+    if (!startDate || !endDate) return 0;
+
     const now = new Date();
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -95,6 +97,8 @@ const Projects = () => {
         };
         await addProjectToAPI(newProject);
         toast.success('프로젝트가 추가되었습니다');
+        // Auto-navigate to the new project's status tab
+        setActiveTab(data.status || 'planning');
       }
       setShowModal(false);
       setSelectedProject(null);
@@ -410,7 +414,9 @@ const Projects = () => {
             위치: {project.location}
           </div>
           <div className="text-gray-600">
-            기간: {format(project.startDate, 'MM.dd (eee)', { locale: ko })} - {format(project.endDate, 'MM.dd (eee)', { locale: ko })}
+            기간: {project.startDate && project.endDate ?
+              `${format(project.startDate, 'MM.dd (eee)', { locale: ko })} - ${format(project.endDate, 'MM.dd (eee)', { locale: ko })}`
+              : '미정'}
           </div>
           <div className="text-gray-600">
             담당: {project.manager}
@@ -451,7 +457,7 @@ const Projects = () => {
               비밀번호
             </button>
           </div>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'manager') && (
             <div className="flex space-x-2">
               <button
                 onClick={() => handleDelete(project.id, project.name)}
@@ -591,9 +597,13 @@ const Projects = () => {
                       <p className="text-sm">{project.client}님</p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {format(project.startDate, 'yyyy.MM.dd (eee)', { locale: ko })} -
-                      <br />
-                      {format(project.endDate, 'yyyy.MM.dd (eee)', { locale: ko })}
+                      {project.startDate && project.endDate ? (
+                        <>
+                          {format(project.startDate, 'yyyy.MM.dd (eee)', { locale: ko })} -
+                          <br />
+                          {format(project.endDate, 'yyyy.MM.dd (eee)', { locale: ko })}
+                        </>
+                      ) : '미정'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusDropdown project={project} />
@@ -638,7 +648,7 @@ const Projects = () => {
                           >
                             수정
                           </button>
-                          {user?.role === 'admin' && (
+                          {(user?.role === 'admin' || user?.role === 'manager') && (
                             <button
                               onClick={() => handleDelete(project.id, project.name)}
                               className="text-xs text-rose-600 hover:text-rose-700"

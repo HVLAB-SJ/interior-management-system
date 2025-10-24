@@ -28,8 +28,8 @@ export interface Project {
   location: string;
   status: 'planning' | 'in-progress' | 'completed' | 'on-hold';
   progress: number;
-  startDate: Date;
-  endDate: Date;
+  startDate?: Date;
+  endDate?: Date;
   contractAmount: number;
   spent: number;
   manager: string;
@@ -82,6 +82,7 @@ export interface Contractor {
   rank?: string; // 평가 순위
   companyName?: string; // 협력업체 이름
   name: string; // 이름 (개인명)
+  position?: string; // 직책
   process: string; // 공정
   contact?: string; // 연락처
   accountNumber: string; // 계좌번호
@@ -526,20 +527,20 @@ export const useDataStore = create<DataStore>()(
     try {
       const apiProjects = await projectService.getAllProjects();
       const projects: Project[] = apiProjects.map((p: ProjectResponse) => ({
-        id: p._id,
+        id: p._id || p.id,
         name: p.name,
+        // Backend returns 'client' as string, 'location' or 'address' for address
         client: typeof p.client === 'object' ? p.client.name : (p.client || '미등록'),
-        location: typeof p.location === 'object' ? p.location.address : (p.location || '미등록'),
+        location: typeof p.location === 'object' ? p.location.address : (p.location || p.address || '미등록'),
         status: p.status === 'inProgress' ? 'in-progress' : (p.status === 'onHold' ? 'on-hold' : p.status) as Project['status'],
         progress: p.progress || 0,
-        startDate: new Date(p.startDate),
-        endDate: new Date(p.endDate),
-        contractAmount: p.budget || 0,
-        spent: p.actualCost || 0,
-        // Use fieldManagers for all managers (manager field is deprecated)
-        manager: p.fieldManagers && p.fieldManagers.length > 0
-          ? p.fieldManagers.map(fm => typeof fm === 'object' ? fm.name : fm).join(', ')
-          : (p.manager ? (typeof p.manager === 'object' ? p.manager.name : p.manager) : '미지정'),
+        // Backend returns 'start_date', 'end_date' (snake_case) or 'startDate', 'endDate' (camelCase)
+        startDate: (p.startDate || p.start_date) ? new Date(p.startDate || p.start_date) : undefined,
+        endDate: (p.endDate || p.end_date) ? new Date(p.endDate || p.end_date) : undefined,
+        contractAmount: p.budget || p.contractAmount || 0,
+        spent: p.actualCost || p.spent || 0,
+        // Backend returns 'manager' field with manager name(s)
+        manager: p.manager || '미지정',
         team: p.fieldManagers?.map(fm => typeof fm === 'object' ? fm.name : fm) || [],
         description: p.description || '',
         meetingNotes: (p as any).meetingNotes?.map((note: any) => ({
@@ -581,20 +582,20 @@ export const useDataStore = create<DataStore>()(
       });
 
       const newProject: Project = {
-        id: apiProject._id,
+        id: apiProject._id || apiProject.id,
         name: apiProject.name,
+        // Backend returns 'client' as string, 'location' or 'address' for address
         client: typeof apiProject.client === 'object' ? apiProject.client.name : (apiProject.client || '미등록'),
-        location: typeof apiProject.location === 'object' ? apiProject.location.address : (apiProject.location || '미등록'),
+        location: typeof apiProject.location === 'object' ? apiProject.location.address : (apiProject.location || apiProject.address || '미등록'),
         status: apiProject.status === 'inProgress' ? 'in-progress' : (apiProject.status === 'onHold' ? 'on-hold' : apiProject.status) as Project['status'],
         progress: apiProject.progress || 0,
-        startDate: new Date(apiProject.startDate),
-        endDate: new Date(apiProject.endDate),
-        contractAmount: apiProject.budget || 0,
-        spent: apiProject.actualCost || 0,
-        // Use fieldManagers for all managers (manager field is deprecated)
-        manager: apiProject.fieldManagers && apiProject.fieldManagers.length > 0
-          ? apiProject.fieldManagers.map(fm => typeof fm === 'object' ? fm.name : fm).join(', ')
-          : (apiProject.manager ? (typeof apiProject.manager === 'object' ? apiProject.manager.name : apiProject.manager) : '미지정'),
+        // Backend returns 'start_date', 'end_date' (snake_case) or 'startDate', 'endDate' (camelCase)
+        startDate: (apiProject.startDate || apiProject.start_date) ? new Date(apiProject.startDate || apiProject.start_date) : undefined,
+        endDate: (apiProject.endDate || apiProject.end_date) ? new Date(apiProject.endDate || apiProject.end_date) : undefined,
+        contractAmount: apiProject.budget || apiProject.contractAmount || 0,
+        spent: apiProject.actualCost || apiProject.spent || 0,
+        // Backend returns 'manager' field with manager name(s)
+        manager: apiProject.manager || '미지정',
         team: apiProject.fieldManagers?.map(fm => typeof fm === 'object' ? fm.name : fm) || [],
         description: apiProject.description || '',
         meetingNotes: (apiProject as any).meetingNotes?.map((note: any) => ({
@@ -624,20 +625,20 @@ export const useDataStore = create<DataStore>()(
       const apiProject = await projectService.updateProject(id, updatedProject);
 
       const project: Project = {
-        id: apiProject._id,
+        id: apiProject._id || apiProject.id,
         name: apiProject.name,
+        // Backend returns 'client' as string, 'location' or 'address' for address
         client: typeof apiProject.client === 'object' ? apiProject.client.name : (apiProject.client || '미등록'),
-        location: typeof apiProject.location === 'object' ? apiProject.location.address : (apiProject.location || '미등록'),
+        location: typeof apiProject.location === 'object' ? apiProject.location.address : (apiProject.location || apiProject.address || '미등록'),
         status: apiProject.status === 'inProgress' ? 'in-progress' : (apiProject.status === 'onHold' ? 'on-hold' : apiProject.status) as Project['status'],
         progress: apiProject.progress || 0,
-        startDate: new Date(apiProject.startDate),
-        endDate: new Date(apiProject.endDate),
-        contractAmount: apiProject.budget || 0,
-        spent: apiProject.actualCost || 0,
-        // Use fieldManagers for all managers (manager field is deprecated)
-        manager: apiProject.fieldManagers && apiProject.fieldManagers.length > 0
-          ? apiProject.fieldManagers.map(fm => typeof fm === 'object' ? fm.name : fm).join(', ')
-          : (apiProject.manager ? (typeof apiProject.manager === 'object' ? apiProject.manager.name : apiProject.manager) : '미지정'),
+        // Backend returns 'start_date', 'end_date' (snake_case) or 'startDate', 'endDate' (camelCase)
+        startDate: (apiProject.startDate || apiProject.start_date) ? new Date(apiProject.startDate || apiProject.start_date) : undefined,
+        endDate: (apiProject.endDate || apiProject.end_date) ? new Date(apiProject.endDate || apiProject.end_date) : undefined,
+        contractAmount: apiProject.budget || apiProject.contractAmount || 0,
+        spent: apiProject.actualCost || apiProject.spent || 0,
+        // Backend returns 'manager' field with manager name(s)
+        manager: apiProject.manager || '미지정',
         team: apiProject.fieldManagers?.map(fm => typeof fm === 'object' ? fm.name : fm) || [],
         description: apiProject.description || '',
         meetingNotes: (apiProject as any).meetingNotes?.map((note: any) => ({
@@ -785,13 +786,19 @@ export const useDataStore = create<DataStore>()(
         vatType: cp.vatType,
         vatPercentage: cp.vatPercentage,
         vatAmount: cp.vatAmount,
-        payments: cp.payments?.map((p: any) => ({
-          type: p.type || p.types?.[0] || '계약금',
-          amount: p.amount,
-          date: new Date(p.date),
-          method: p.method,
-          notes: p.notes
-        })) || []
+        payments: cp.payments?.map((p: any) => {
+          // Safe date conversion - fallback to current date if invalid
+          const dateValue = p.date ? new Date(p.date) : new Date();
+          const validDate = isNaN(dateValue.getTime()) ? new Date() : dateValue;
+
+          return {
+            type: p.type || p.types?.[0] || '계약금',
+            amount: p.amount,
+            date: validDate,
+            method: p.method,
+            notes: p.notes
+          };
+        }) || []
       }));
       set({ constructionPayments });
     } catch (error) {
@@ -812,13 +819,19 @@ export const useDataStore = create<DataStore>()(
         vatType: apiPayment.vatType,
         vatPercentage: apiPayment.vatPercentage,
         vatAmount: apiPayment.vatAmount,
-        payments: apiPayment.payments?.map((p: any) => ({
-          type: p.type || p.types?.[0] || '계약금',
-          amount: p.amount,
-          date: new Date(p.date),
-          method: p.method,
-          notes: p.notes
-        })) || []
+        payments: apiPayment.payments?.map((p: any) => {
+          // Safe date conversion - fallback to current date if invalid
+          const dateValue = p.date ? new Date(p.date) : new Date();
+          const validDate = isNaN(dateValue.getTime()) ? new Date() : dateValue;
+
+          return {
+            type: p.type || p.types?.[0] || '계약금',
+            amount: p.amount,
+            date: validDate,
+            method: p.method,
+            notes: p.notes
+          };
+        }) || []
       };
 
       set((state) => ({ constructionPayments: [newPayment, ...state.constructionPayments] }));
@@ -972,8 +985,8 @@ export const useDataStore = create<DataStore>()(
           // Date 문자열을 Date 객체로 변환 및 budget → contractAmount 마이그레이션
           const projects = state.projects?.map((p: any) => ({
             ...p,
-            startDate: new Date(p.startDate),
-            endDate: new Date(p.endDate),
+            startDate: p.startDate ? new Date(p.startDate) : undefined,
+            endDate: p.endDate ? new Date(p.endDate) : undefined,
             // 마이그레이션: budget 필드를 contractAmount로 변환
             contractAmount: p.contractAmount !== undefined ? p.contractAmount : p.budget || 0,
           })) || [];

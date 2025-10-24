@@ -46,25 +46,53 @@ const workRequestService = {
 
   // Create work request
   createWorkRequest: async (data: WorkRequestData): Promise<WorkRequestResponse> => {
-    const response = await api.post('/workrequests', {
+    console.log('[workRequestService.createWorkRequest] Input data:', data);
+
+    // Send all required fields to backend
+    const backendData = {
       project: data.project,
       requestType: data.requestType,
       description: data.description,
-      requestDate: data.requestDate,
-      dueDate: data.dueDate,
+      requestDate: data.requestDate instanceof Date ? data.requestDate.toISOString() : data.requestDate,
+      dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
       requestedBy: data.requestedBy,
       assignedTo: data.assignedTo,
-      status: data.status || 'pending',
       priority: data.priority || 'medium',
-      notes: data.notes,
-      completedDate: data.completedDate
-    });
+      status: data.status || 'pending',
+      notes: data.notes || ''
+    };
+
+    console.log('[workRequestService.createWorkRequest] Sending to backend:', backendData);
+    const response = await api.post('/workrequests', backendData);
     return response.data;
   },
 
   // Update work request
   updateWorkRequest: async (id: string, data: Partial<WorkRequestData>): Promise<WorkRequestResponse> => {
-    const response = await api.put(`/workrequests/${id}`, data);
+    console.log('[workRequestService.updateWorkRequest] Input data:', data);
+
+    // Send all fields to backend (backend accepts camelCase)
+    const backendData: any = {};
+    if (data.project !== undefined) backendData.project = data.project;
+    if (data.requestType !== undefined) backendData.requestType = data.requestType;
+    if (data.description !== undefined) backendData.description = data.description;
+    if (data.requestDate !== undefined) {
+      backendData.requestDate = data.requestDate instanceof Date ? data.requestDate.toISOString() : data.requestDate;
+    }
+    if (data.dueDate !== undefined) {
+      backendData.dueDate = data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate;
+    }
+    if (data.requestedBy !== undefined) backendData.requestedBy = data.requestedBy;
+    if (data.assignedTo !== undefined) backendData.assignedTo = data.assignedTo;
+    if (data.priority !== undefined) backendData.priority = data.priority;
+    if (data.status !== undefined) backendData.status = data.status;
+    if (data.notes !== undefined) backendData.notes = data.notes;
+    if (data.completedDate !== undefined) {
+      backendData.completedDate = data.completedDate instanceof Date ? data.completedDate.toISOString() : data.completedDate;
+    }
+
+    console.log('[workRequestService.updateWorkRequest] Sending to backend:', backendData);
+    const response = await api.put(`/workrequests/${id}`, backendData);
     return response.data;
   },
 

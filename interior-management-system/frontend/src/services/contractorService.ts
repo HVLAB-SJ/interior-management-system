@@ -4,6 +4,7 @@ export interface ContractorData {
   rank?: string;
   companyName?: string;
   name: string;
+  position?: string;
   process: string;
   contact?: string;
   accountNumber: string;
@@ -15,6 +16,7 @@ export interface ContractorResponse {
   rank?: string;
   companyName?: string;
   name: string;
+  position?: string;
   process: string;
   contact?: string;
   accountNumber: string;

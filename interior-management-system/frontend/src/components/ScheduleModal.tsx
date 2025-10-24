@@ -149,6 +149,23 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id, slotInfo?.start]); // event.id와 slotInfo.start가 변경될 때만 재실행
 
+  // 프로젝트 선택 시 자동으로 해당 프로젝트의 팀원을 담당자로 설정
+  useEffect(() => {
+    // 새 일정 추가 모드일 때만 작동 (기존 일정 수정 시에는 작동하지 않음)
+    if (!event?.id && selectedProjectId && selectedProjectId !== 'custom') {
+      const selectedProject = projects.find(p =>
+        p.id === selectedProjectId ||
+        p.id === parseInt(selectedProjectId) ||
+        p.id.toString() === selectedProjectId.toString()
+      );
+
+      if (selectedProject && selectedProject.team && selectedProject.team.length > 0) {
+        console.log('🔵 Auto-setting team members from project:', selectedProject.name, selectedProject.team);
+        setSelectedMembers(selectedProject.team);
+      }
+    }
+  }, [selectedProjectId, projects, event?.id]);
+
   const toggleMember = (member: string) => {
     setSelectedMembers(prev =>
       prev.includes(member)

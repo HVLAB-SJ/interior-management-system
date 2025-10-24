@@ -154,9 +154,13 @@ const ConstructionPayment = () => {
       : (selectedRecord ? projects.find(p => p.name === selectedRecord.project) : null);
 
     if (!currentProject || types.length === 0) return '';
+    if (!currentProject.startDate || !currentProject.endDate) return '';
 
     const startDate = new Date(currentProject.startDate);
     const endDate = new Date(currentProject.endDate);
+
+    // Check if dates are valid
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '';
 
     // 우선순위에 따라 날짜 결정
     if (types.includes('계약금')) {
@@ -183,10 +187,14 @@ const ConstructionPayment = () => {
   const calculatePaymentSchedule = (record: PaymentRecord) => {
     const project = projects.find(p => p.name === record.project);
     if (!project) return [];
+    if (!project.startDate || !project.endDate) return [];
 
     const totalAmount = calculateTotalContractAmount(record);
     const startDate = new Date(project.startDate);
     const endDate = new Date(project.endDate);
+
+    // Check if dates are valid
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return [];
 
     const schedule: Array<{
       type: string;
@@ -283,8 +291,9 @@ const ConstructionPayment = () => {
     }
 
     try {
-      const newRecord: PaymentRecord = {
+      const newRecord: any = {
         id: '',
+        project_id: selectedProject.id,  // Add project_id for backend
         project: selectedProject.name,
         client: selectedProject.client,
         totalAmount: newProject.totalAmount,
@@ -294,6 +303,7 @@ const ConstructionPayment = () => {
         payments: []
       };
 
+      console.log('📤 Sending to API:', newRecord);
       await addConstructionPaymentToAPI(newRecord);
       toast.success('프로젝트가 추가되었습니다');
       setShowProjectModal(false);

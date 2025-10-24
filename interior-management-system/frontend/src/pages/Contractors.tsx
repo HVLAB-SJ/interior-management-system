@@ -3,6 +3,19 @@ import { type Contractor } from '../store/dataStore';
 import { X, Edit2, Trash2, Search } from 'lucide-react';
 import contractorService from '../services/contractorService';
 
+// Extract Korean position title from name (e.g., "김혁실장" -> "실장")
+const extractPosition = (name: string): string => {
+  const positions = ['대표이사', '부사장', '전무', '상무', '이사', '실장', '부장', '차장', '과장', '대리', '주임', '사원', '팀장', '소장', '대표'];
+
+  for (const position of positions) {
+    if (name.endsWith(position)) {
+      return position;
+    }
+  }
+
+  return '';
+};
+
 export default function Contractors() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +28,7 @@ export default function Contractors() {
     rank: '',
     companyName: '',
     name: '',
+    position: '',
     process: '',
     contact: '',
     bankName: '',
@@ -47,6 +61,7 @@ export default function Contractors() {
         rank: c.rank,
         companyName: c.companyName,
         name: c.name,
+        position: c.position,
         process: c.process,
         contact: c.contact,
         accountNumber: c.accountNumber,
@@ -148,6 +163,7 @@ export default function Contractors() {
         rank: contractor.rank || '',
         companyName: contractor.companyName || '',
         name: contractor.name,
+        position: contractor.position || '',
         process: contractor.process,
         contact: contractor.contact || '',
         bankName: bankName,
@@ -156,7 +172,7 @@ export default function Contractors() {
       });
     } else {
       setEditingContractor(null);
-      setFormData({ rank: '', companyName: '', name: '', process: '', contact: '', bankName: '', accountNumber: '', notes: '' });
+      setFormData({ rank: '', companyName: '', name: '', position: '', process: '', contact: '', bankName: '', accountNumber: '', notes: '' });
     }
     setIsModalOpen(true);
   };
@@ -164,7 +180,7 @@ export default function Contractors() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingContractor(null);
-    setFormData({ rank: '', companyName: '', name: '', process: '', contact: '', bankName: '', accountNumber: '', notes: '' });
+    setFormData({ rank: '', companyName: '', name: '', position: '', process: '', contact: '', bankName: '', accountNumber: '', notes: '' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,6 +196,7 @@ export default function Contractors() {
         rank: formData.rank,
         companyName: formData.companyName,
         name: formData.name,
+        position: formData.position,
         process: formData.process,
         contact: formData.contact,
         accountNumber: fullAccountNumber,
@@ -298,6 +315,9 @@ export default function Contractors() {
                   이름
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  직책
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   연락처
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -314,13 +334,13 @@ export default function Contractors() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <p className="text-gray-500">로딩 중...</p>
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="space-y-4">
                       <p className="text-red-500">{error}</p>
                       <button
@@ -334,7 +354,7 @@ export default function Contractors() {
                 </tr>
               ) : filteredContractors.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <p className="text-gray-500">
                       {searchTerm ? '검색 결과가 없습니다.' : '등록된 협력업체가 없습니다.'}
                     </p>
@@ -349,7 +369,7 @@ export default function Contractors() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium text-gray-700">
+                      <span className="text-xs font-medium text-gray-700">
                         {contractor.process}
                       </span>
                     </td>
@@ -358,6 +378,9 @@ export default function Contractors() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{contractor.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{contractor.position || extractPosition(contractor.name) || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{contractor.contact || '-'}</div>
@@ -449,6 +472,12 @@ export default function Contractors() {
 
               {/* 상세 정보 */}
               <div className="space-y-1 text-xs">
+                {(contractor.position || extractPosition(contractor.name)) && (
+                  <div className="flex items-start">
+                    <span className="text-gray-500 w-14 flex-shrink-0">직책:</span>
+                    <span className="text-gray-900">{contractor.position || extractPosition(contractor.name)}</span>
+                  </div>
+                )}
                 {contractor.contact && (
                   <div className="flex items-start">
                     <span className="text-gray-500 w-14 flex-shrink-0">연락처:</span>
@@ -526,6 +555,18 @@ export default function Contractors() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    직책
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
                   />
                 </div>

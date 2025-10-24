@@ -16,7 +16,27 @@ const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'
 const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) => {
   const { projects } = useDataStore();
   const { user } = useAuth();
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm();
+
+  // Get today's date in local timezone (YYYY-MM-DD format)
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+    defaultValues: {
+      project: request?.project || '',
+      requestType: request?.requestType || '',
+      requestDate: request?.requestDate ? format(request.requestDate, 'yyyy-MM-dd') : getTodayDateString(),
+      dueDate: request?.dueDate ? format(request.dueDate, 'yyyy-MM-dd') : format(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      requestedBy: request?.requestedBy || '',
+      assignedTo: request?.assignedTo || '',
+      description: request?.description || ''
+    }
+  });
   const [isUrgent, setIsUrgent] = useState(request?.priority === 'high');
   const [customRequestType, setCustomRequestType] = useState('');
   const selectedRequestType = watch('requestType');
@@ -30,6 +50,8 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
   }, [request, user, setValue]);
 
   const onSubmit = (data: any) => {
+    console.log('📝 WorkRequestModal onSubmit - Raw data:', data);
+
     const formData = {
       ...data,
       requestType: data.requestType === '직접입력' ? customRequestType : data.requestType,
@@ -39,6 +61,8 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
       priority: isUrgent ? 'high' : 'medium',
       completedDate: data.completedDate ? new Date(data.completedDate) : undefined,
     };
+
+    console.log('📝 WorkRequestModal onSubmit - Processed formData:', formData);
     onSave(formData);
   };
 
@@ -67,7 +91,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
             </label>
             <select
               {...register('project', { required: '프로젝트를 선택하세요' })}
-              defaultValue={request?.project || ''}
               className="input w-full"
             >
               <option value="">프로젝트를 선택하세요</option>
@@ -91,7 +114,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
             </label>
             <select
               {...register('requestType', { required: '요청유형을 선택하세요' })}
-              defaultValue={request?.requestType}
               className="input w-full"
             >
               <option value="">선택하세요</option>
@@ -136,7 +158,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
             </label>
             <textarea
               {...register('description')}
-              defaultValue={request?.description}
               rows={4}
               className="input w-full"
               placeholder="상세한 요청 내용을 입력하세요"
@@ -152,7 +173,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
               <input
                 {...register('requestDate', { required: '요청일을 선택하세요' })}
                 type="date"
-                defaultValue={request?.requestDate ? format(request.requestDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
                 className="input w-full"
                 style={{ position: 'relative' }}
               />
@@ -167,7 +187,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
               <input
                 {...register('dueDate', { required: '마감일을 선택하세요' })}
                 type="date"
-                defaultValue={request?.dueDate ? format(request.dueDate, 'yyyy-MM-dd') : format(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}
                 className="input w-full"
                 style={{ position: 'relative' }}
               />
@@ -185,7 +204,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
               </label>
               <select
                 {...register('requestedBy', { required: '요청자를 선택하세요' })}
-                defaultValue={request?.requestedBy || ''}
                 className="input w-full"
               >
                 <option value="">선택하세요</option>
@@ -205,7 +223,6 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
               </label>
               <select
                 {...register('assignedTo', { required: '담당자를 선택하세요' })}
-                defaultValue={request?.assignedTo || ''}
                 className="input w-full"
               >
                 <option value="">선택하세요</option>

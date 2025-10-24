@@ -33,7 +33,7 @@ function App() {
     requestNotificationPermission();
 
     // Socket.IO 연결
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling']
     });

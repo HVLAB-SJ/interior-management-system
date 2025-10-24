@@ -101,8 +101,8 @@ const AdditionalWork = () => {
   };
 
   const filteredWorks = additionalWorks.filter(work => {
-    const matchesSearch = work.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          work.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (work.project?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (work.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 

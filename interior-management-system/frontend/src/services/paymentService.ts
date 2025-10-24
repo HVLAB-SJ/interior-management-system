@@ -71,25 +71,36 @@ const paymentService = {
 
   // Create payment
   createPayment: async (data: PaymentData): Promise<PaymentResponse> => {
+    // Convert to backend format (camelCase -> snake_case)
     const response = await api.post('/payments', {
-      project: data.projectId,
-      purpose: data.purpose,
-      process: data.process,
-      itemName: data.itemName,
+      project_id: data.projectId,
+      request_type: data.category,
+      vendor_name: data.process || '',
+      description: data.purpose,
       amount: data.amount,
-      category: data.category,
-      urgency: data.urgency || 'normal',
-      requestedBy: data.requestedBy,
-      bankInfo: data.bankInfo,
-      notes: data.notes,
-      attachments: data.attachments || []
+      account_holder: data.bankInfo?.accountHolder || '',
+      bank_name: data.bankInfo?.bankName || '',
+      account_number: data.bankInfo?.accountNumber || '',
+      notes: data.notes || ''
     });
     return response.data;
   },
 
   // Update payment
   updatePayment: async (id: string, data: Partial<PaymentData>): Promise<PaymentResponse> => {
-    const response = await api.put(`/payments/${id}`, data);
+    // Convert to backend format (camelCase -> snake_case)
+    const backendData: any = {};
+    if (data.purpose !== undefined) backendData.description = data.purpose;
+    if (data.amount !== undefined) backendData.amount = data.amount;
+    if (data.process !== undefined) backendData.vendor_name = data.process;
+    if (data.category !== undefined) backendData.request_type = data.category;
+    if (data.notes !== undefined) backendData.notes = data.notes;
+    if (data.bankInfo !== undefined) {
+      if (data.bankInfo.accountHolder) backendData.account_holder = data.bankInfo.accountHolder;
+      if (data.bankInfo.bankName) backendData.bank_name = data.bankInfo.bankName;
+      if (data.bankInfo.accountNumber) backendData.account_number = data.bankInfo.accountNumber;
+    }
+    const response = await api.put(`/payments/${id}`, backendData);
     return response.data;
   },
 
