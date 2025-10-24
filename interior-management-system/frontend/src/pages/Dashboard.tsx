@@ -49,15 +49,15 @@ const Dashboard = () => {
             const totalTasks = todaySchedules.length + upcomingSchedules.length;
 
             return (
-              <div key={member} className="card p-3 md:p-4">
+              <div key={member} className="card p-4 md:p-4">
                 {/* 헤더 */}
-                <div className="flex items-center justify-between mb-3 md:mb-4 pb-2 md:pb-3 border-b border-gray-200">
-                  <h3 className="font-bold text-base md:text-lg text-gray-900">{member}</h3>
-                  <div className="flex items-center gap-1.5 md:gap-2">
-                    <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-gray-100 text-gray-900 rounded-full font-semibold whitespace-nowrap">
+                <div className="flex items-center justify-between mb-4 md:mb-4 pb-3 md:pb-3 border-b border-gray-200">
+                  <h3 className="font-bold text-lg md:text-lg text-gray-900">{member}</h3>
+                  <div className="flex items-center gap-2 md:gap-2">
+                    <span className="text-xs md:text-xs px-2.5 md:px-2 py-1 md:py-1 bg-gray-100 text-gray-900 rounded-full font-semibold whitespace-nowrap">
                       {todaySchedules.length} 오늘
                     </span>
-                    <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-gray-100 text-gray-700 rounded-full font-semibold whitespace-nowrap">
+                    <span className="text-xs md:text-xs px-2.5 md:px-2 py-1 md:py-1 bg-gray-100 text-gray-700 rounded-full font-semibold whitespace-nowrap">
                       {upcomingSchedules.length} 예정
                     </span>
                   </div>
@@ -65,18 +65,18 @@ const Dashboard = () => {
 
                 {/* 오늘의 일정 */}
                 {todaySchedules.length > 0 && (
-                  <div className="mb-2 md:mb-3">
-                    <div className="flex items-center gap-1 mb-1.5 md:mb-2">
-                      <Calendar className="h-3 w-3 md:h-4 md:w-4 text-gray-900" />
-                      <p className="text-[10px] md:text-xs font-semibold text-gray-900 uppercase">오늘</p>
+                  <div className="mb-3 md:mb-3">
+                    <div className="flex items-center gap-1.5 mb-2 md:mb-2">
+                      <Calendar className="h-4 w-4 md:h-4 md:w-4 text-gray-900" />
+                      <p className="text-xs md:text-xs font-semibold text-gray-900 uppercase">오늘</p>
                     </div>
-                    <div className="space-y-1.5 md:space-y-2">
+                    <div className="space-y-2 md:space-y-2">
                       {todaySchedules.map((schedule) => (
-                        <div key={schedule.id} className="border-l-3 border-gray-900 pl-2 py-1 bg-gray-50 rounded-r">
-                          <p className="font-medium text-gray-900 text-xs md:text-sm">{schedule.title}</p>
-                          <p className="text-[10px] md:text-xs text-gray-600">{schedule.project || '-'}</p>
+                        <div key={schedule.id} className="border-l-3 border-gray-900 pl-3 py-2 bg-gray-50 rounded-r">
+                          <p className="font-medium text-gray-900 text-sm md:text-sm leading-relaxed">{schedule.title}</p>
+                          <p className="text-xs md:text-xs text-gray-600 mt-1">{schedule.project || '-'}</p>
                           {schedule.attendees && schedule.attendees.length > 1 && (
-                            <p className="text-[10px] md:text-xs text-gray-500">
+                            <p className="text-xs md:text-xs text-gray-500 mt-1">
                               함께: {schedule.attendees.filter(a => a !== member).join(', ')}
                             </p>
                           )}
@@ -89,22 +89,22 @@ const Dashboard = () => {
                 {/* 다가오는 일정 */}
                 {upcomingSchedules.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-1 mb-1.5 md:mb-2">
-                      <Clock className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
-                      <p className="text-[10px] md:text-xs font-semibold text-gray-600 uppercase">예정</p>
+                    <div className="flex items-center gap-1.5 mb-2 md:mb-2">
+                      <Clock className="h-4 w-4 md:h-4 md:w-4 text-gray-600" />
+                      <p className="text-xs md:text-xs font-semibold text-gray-600 uppercase">예정</p>
                     </div>
-                    <div className="space-y-1.5 md:space-y-2">
+                    <div className="space-y-2 md:space-y-2">
                       {upcomingSchedules.map((schedule) => (
-                        <div key={schedule.id} className="border-l-3 border-gray-400 pl-2 py-1 bg-gray-50 rounded-r">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-gray-900 text-xs md:text-sm truncate pr-2">{schedule.title}</p>
-                            <p className="text-[10px] md:text-xs text-gray-500 whitespace-nowrap">
+                        <div key={schedule.id} className="border-l-3 border-gray-400 pl-3 py-2 bg-gray-50 rounded-r">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-gray-900 text-sm md:text-sm leading-relaxed flex-1">{schedule.title}</p>
+                            <p className="text-xs md:text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
                               {format(new Date(schedule.start), 'MM.dd', { locale: ko })}
                             </p>
                           </div>
-                          <p className="text-[10px] md:text-xs text-gray-600">{schedule.project || '-'}</p>
+                          <p className="text-xs md:text-xs text-gray-600 mt-1">{schedule.project || '-'}</p>
                           {schedule.attendees && schedule.attendees.length > 1 && (
-                            <p className="text-[10px] md:text-xs text-gray-500">
+                            <p className="text-xs md:text-xs text-gray-500 mt-1">
                               함께: {schedule.attendees.filter(a => a !== member).join(', ')}
                             </p>
                           )}
@@ -116,7 +116,7 @@ const Dashboard = () => {
 
                 {/* 일정이 없을 때 */}
                 {totalTasks === 0 && (
-                  <div className="text-center py-6 md:py-8 text-gray-400 text-xs md:text-sm">
+                  <div className="text-center py-8 md:py-8 text-gray-400 text-sm md:text-sm">
                     예정된 일정이 없습니다
                   </div>
                 )}
