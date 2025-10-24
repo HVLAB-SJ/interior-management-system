@@ -378,6 +378,16 @@ const Schedule = () => {
     return index >= 0 ? projectColors[index % projectColors.length] : '#6B7280';
   };
 
+  // Format time to Korean format (14:00 -> 오후 2시)
+  const formatTimeKorean = (time: string): string => {
+    if (!time || time === '-') return '';
+    const [hoursStr] = time.split(':');
+    const hours = parseInt(hoursStr, 10);
+    const period = hours >= 12 ? '오후' : '오전';
+    const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+    return `${period} ${displayHours}시`;
+  };
+
   // Store 데이터를 Calendar 이벤트 형식으로 변환
   // AS 요청 관련 일정은 제외 (asVisitEvents에서 별도로 처리)
   const scheduleEvents: ScheduleEvent[] = schedules
@@ -407,16 +417,6 @@ const Schedule = () => {
         description: schedule.description
       };
     });
-
-  // Format time to Korean format (14:00 -> 오후 2시)
-  const formatTimeKorean = (time: string): string => {
-    if (!time || time === '-') return '';
-    const [hoursStr] = time.split(':');
-    const hours = parseInt(hoursStr, 10);
-    const period = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
-    return `${period} ${displayHours}시`;
-  };
 
   // AS 방문 예정일을 캘린더 이벤트로 변환
   const asVisitEvents: ScheduleEvent[] = asRequests
@@ -1037,7 +1037,7 @@ const Schedule = () => {
               onNavigate={setDate}
               onSelectEvent={onSelectEvent}
               onSelectSlot={onSelectSlot}
-              selectable={!isMobileView}
+              selectable={true}
               longPressThreshold={250}
               eventPropGetter={eventStyleGetter}
               dayPropGetter={dayPropGetter}
