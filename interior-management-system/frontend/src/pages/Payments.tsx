@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import clsx from 'clsx';
-import { Trash2, Smartphone } from 'lucide-react';
+import { Trash2, Smartphone, Zap } from 'lucide-react';
 import PaymentRequestModal from '../components/PaymentRequestModal';
 import toast from 'react-hot-toast';
 import { useDataStore, type Payment } from '../store/dataStore';
 import { initKakao, sendPaymentNotification } from '../utils/kakao';
 import paymentService from '../services/paymentService';
+import { getBankCode } from '../utils/bankCodes';
 
 type TabStatus = 'pending' | 'completed' | 'all';
 
@@ -281,9 +282,84 @@ const Payments = () => {
 
                   {payment.status === 'pending' && (
                     <>
+                      {/* 자동 송금 버튼 */}
+                      <button
+                        onClick={async () => {
+                          const { accountHolder, bankName, accountNumber } = payment.bankInfo || {};
+
+                          if (!accountHolder || !accountNumber || !bankName) {
+                            toast.error('계좌 정보가 없습니다');
+                            return;
+                          }
+
+                          const bankCode = getBankCode(bankName);
+                          if (!bankCode) {
+                            toast.error('지원하지 않는 은행입니다');
+                            return;
+                          }
+
+                          if (!window.confirm(
+                            `오픈뱅킹으로 즉시 송금하시겠습니까?\n\n` +
+                            `받는분: ${accountHolder}\n` +
+                            `은행: ${bankName}\n` +
+                            `계좌: ${accountNumber}\n` +
+                            `금액: ${payment.amount.toLocaleString()}원`
+                          )) {
+                            return;
+                          }
+
+                          try {
+                            const token = localStorage.getItem('token');
+                            const loadingToast = toast.loading('송금 처리 중...');
+
+                            const response = await fetch('/api/banking/transfer', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({
+                                paymentId: payment.id,
+                                bankCode: bankCode,
+                                accountNumber: accountNumber,
+                                accountHolder: accountHolder,
+                                amount: payment.amount,
+                                purpose: payment.purpose || `${payment.project} 결제`
+                              })
+                            });
+
+                            toast.dismiss(loadingToast);
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                              toast.success('송금이 완료되었습니다!');
+                              await loadPaymentsFromAPI();
+                            } else {
+                              // 오픈뱅킹 연동 필요
+                              if (result.requireAuth) {
+                                if (window.confirm('오픈뱅킹 연동이 필요합니다.\n설정 페이지로 이동하시겠습니까?')) {
+                                  window.location.href = '/settings';
+                                }
+                              } else {
+                                toast.error(result.message || '송금에 실패했습니다');
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Transfer error:', error);
+                            toast.error('송금 처리 중 오류가 발생했습니다');
+                          }
+                        }}
+                        className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium whitespace-nowrap flex items-center justify-center gap-1"
+                        title="오픈뱅킹 자동 송금"
+                      >
+                        <Zap className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                        즉시송금
+                      </button>
+
+                      {/* 계좌정보 복사 버튼 (백업) */}
                       <button
                         onClick={() => {
-                          // 계좌 정보 복사
                           const { accountHolder, bankName, accountNumber } = payment.bankInfo || {};
 
                           if (!accountHolder || !accountNumber) {
@@ -291,22 +367,18 @@ const Payments = () => {
                             return;
                           }
 
-                          // 계좌정보 복사
                           const copyText = `${bankName}\n${accountNumber}\n${accountHolder}\n송금액: ${payment.amount.toLocaleString()}원`;
 
                           if (navigator.clipboard && navigator.clipboard.writeText) {
                             navigator.clipboard.writeText(copyText).then(() => {
-                              toast.success('계좌정보가 복사되었습니다\n뱅킹앱을 열어 붙여넣어주세요');
+                              toast.success('계좌정보가 복사되었습니다');
                             }).catch(() => {
-                              // 클립보드 API 실패 시 대체 방법
                               fallbackCopyTextToClipboard(copyText);
                             });
                           } else {
-                            // 클립보드 API 미지원 시 대체 방법
                             fallbackCopyTextToClipboard(copyText);
                           }
 
-                          // 대체 복사 방법
                           function fallbackCopyTextToClipboard(text: string) {
                             const textArea = document.createElement('textarea');
                             textArea.value = text;
@@ -320,7 +392,7 @@ const Payments = () => {
 
                             try {
                               document.execCommand('copy');
-                              toast.success('계좌정보가 복사되었습니다\n뱅킹앱을 열어 붙여넣어주세요');
+                              toast.success('계좌정보가 복사되었습니다');
                             } catch (err) {
                               toast.error('계좌정보 복사 실패');
                             }
@@ -328,11 +400,13 @@ const Payments = () => {
                             document.body.removeChild(textArea);
                           }
                         }}
-                        className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium whitespace-nowrap flex items-center justify-center gap-1"
+                        className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 font-medium whitespace-nowrap flex items-center justify-center gap-1"
+                        title="계좌정보 복사"
                       >
                         <Smartphone className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                        송금
+                        복사
                       </button>
+
                       <button
                         onClick={() => handleStatusChange(payment.id, 'completed')}
                         className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800 font-medium whitespace-nowrap"
