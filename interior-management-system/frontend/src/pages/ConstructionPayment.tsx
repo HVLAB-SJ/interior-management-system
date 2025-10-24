@@ -1052,8 +1052,11 @@ const ConstructionPayment = () => {
                   <div>
                     <input
                       type="number"
-                      value={newProject.vatPercentage}
-                      onChange={(e) => setNewProject({ ...newProject, vatPercentage: Number(e.target.value) })}
+                      value={newProject.vatPercentage ?? 100}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 100 : Number(e.target.value);
+                        setNewProject({ ...newProject, vatPercentage: value });
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 focus:border-transparent"
                       placeholder="100"
                       min="0"
@@ -1070,8 +1073,11 @@ const ConstructionPayment = () => {
                   <div>
                     <input
                       type="number"
-                      value={newProject.vatAmount || ''}
-                      onChange={(e) => setNewProject({ ...newProject, vatAmount: Number(e.target.value) })}
+                      value={newProject.vatAmount ?? 0}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : Number(e.target.value);
+                        setNewProject({ ...newProject, vatAmount: value });
+                      }}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-600 focus:border-transparent"
                       placeholder="5000000"
                       min="0"
@@ -1088,13 +1094,13 @@ const ConstructionPayment = () => {
                     <p className="text-xs text-gray-700 mb-1">총 계약금액 (부가세 포함)</p>
                     <p className="text-xl font-bold text-gray-900">
                       ₩{(newProject.totalAmount + (newProject.vatType === 'percentage'
-                        ? (newProject.totalAmount * (newProject.vatPercentage / 100) * 0.1)
-                        : newProject.vatAmount)).toLocaleString()}
+                        ? (newProject.totalAmount * ((newProject.vatPercentage ?? 100) / 100) * 0.1)
+                        : (newProject.vatAmount ?? 0))).toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-600 mt-1">
                       = 공사금액 ₩{newProject.totalAmount.toLocaleString()} + 부가세 ₩{(newProject.vatType === 'percentage'
-                        ? (newProject.totalAmount * (newProject.vatPercentage / 100) * 0.1)
-                        : newProject.vatAmount).toLocaleString()}
+                        ? (newProject.totalAmount * ((newProject.vatPercentage ?? 100) / 100) * 0.1)
+                        : (newProject.vatAmount ?? 0)).toLocaleString()}
                     </p>
                   </div>
                 )}
