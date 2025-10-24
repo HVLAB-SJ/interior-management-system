@@ -28,7 +28,7 @@ type TabStatus = 'pending' | 'in-progress' | 'completed' | 'all';
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
 
 const WorkRequest = () => {
-  const { addScheduleToAPI, deleteScheduleFromAPI, schedules } = useDataStore();
+  const { addScheduleToAPI, deleteScheduleFromAPI, schedules, projects } = useDataStore();
   const [requests, setRequests] = useState<WorkRequest[]>([]);
 
   const [showModal, setShowModal] = useState(false);
