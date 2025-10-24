@@ -282,7 +282,7 @@ const Payments = () => {
 
                   {payment.status === 'pending' && (
                     <>
-                      {/* 자동 송금 버튼 */}
+                      {/* KB 자동 송금 버튼 (무료!) */}
                       <button
                         onClick={async () => {
                           const { accountHolder, bankName, accountNumber } = payment.bankInfo || {};
@@ -298,12 +298,17 @@ const Payments = () => {
                             return;
                           }
 
+                          // 수수료 계산
+                          const fee = bankCode === '004' ? 0 : 500;
+                          const feeText = fee === 0 ? '(수수료 무료!)' : `(수수료 ${fee}원)`;
+
                           if (!window.confirm(
-                            `오픈뱅킹으로 즉시 송금하시겠습니까?\n\n` +
+                            `KB은행 API로 즉시 송금하시겠습니까?\n\n` +
                             `받는분: ${accountHolder}\n` +
                             `은행: ${bankName}\n` +
                             `계좌: ${accountNumber}\n` +
-                            `금액: ${payment.amount.toLocaleString()}원`
+                            `금액: ${payment.amount.toLocaleString()}원\n` +
+                            `${feeText}`
                           )) {
                             return;
                           }
@@ -312,7 +317,7 @@ const Payments = () => {
                             const token = localStorage.getItem('token');
                             const loadingToast = toast.loading('송금 처리 중...');
 
-                            const response = await fetch('/api/banking/transfer', {
+                            const response = await fetch('/api/banking/kb-transfer', {
                               method: 'POST',
                               headers: {
                                 'Content-Type': 'application/json',
@@ -333,25 +338,23 @@ const Payments = () => {
                             const result = await response.json();
 
                             if (result.success) {
-                              toast.success('송금이 완료되었습니다!');
+                              // 수수료 정보 포함하여 성공 메시지
+                              const successMsg = result.data.fee === 0
+                                ? '송금이 완료되었습니다! (수수료 무료)'
+                                : `송금이 완료되었습니다 (수수료 ${result.data.fee}원)`;
+
+                              toast.success(successMsg);
                               await loadPaymentsFromAPI();
                             } else {
-                              // 오픈뱅킹 연동 필요
-                              if (result.requireAuth) {
-                                if (window.confirm('오픈뱅킹 연동이 필요합니다.\n설정 페이지로 이동하시겠습니까?')) {
-                                  window.location.href = '/settings';
-                                }
-                              } else {
-                                toast.error(result.message || '송금에 실패했습니다');
-                              }
+                              toast.error(result.message || '송금에 실패했습니다');
                             }
                           } catch (error) {
-                            console.error('Transfer error:', error);
+                            console.error('KB Transfer error:', error);
                             toast.error('송금 처리 중 오류가 발생했습니다');
                           }
                         }}
                         className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium whitespace-nowrap flex items-center justify-center gap-1"
-                        title="오픈뱅킹 자동 송금"
+                        title="KB은행 자동 송금 (무료)"
                       >
                         <Zap className="w-3 h-3 md:w-3.5 md:h-3.5" />
                         즉시송금
