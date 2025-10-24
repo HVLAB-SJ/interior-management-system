@@ -77,7 +77,7 @@ const Dashboard = () => {
                             <span className="text-gray-600">[{schedule.project || '-'}]</span> {schedule.title}
                             {schedule.attendees && schedule.attendees.length > 1 && (
                               <span className="text-gray-500 ml-2">
-                                (함께: {schedule.attendees.filter(a => a !== member).join(', ')})
+                                ({schedule.attendees.filter(a => a !== member).join(', ')})
                               </span>
                             )}
                           </p>
@@ -102,7 +102,7 @@ const Dashboard = () => {
                               <span className="text-gray-600">[{schedule.project || '-'}]</span> {schedule.title}
                               {schedule.attendees && schedule.attendees.length > 1 && (
                                 <span className="text-gray-500 ml-2">
-                                  (함께: {schedule.attendees.filter(a => a !== member).join(', ')})
+                                  ({schedule.attendees.filter(a => a !== member).join(', ')})
                                 </span>
                               )}
                             </p>
