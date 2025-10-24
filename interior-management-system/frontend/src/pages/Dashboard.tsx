@@ -73,13 +73,14 @@ const Dashboard = () => {
                     <div className="space-y-2 md:space-y-3">
                       {todaySchedules.map((schedule) => (
                         <div key={schedule.id} className="border-l-3 border-gray-900 pl-3 md:pl-4 py-2 md:py-3 bg-gray-50 rounded-r">
-                          <p className="font-medium text-gray-900 text-sm md:text-base leading-relaxed">{schedule.title}</p>
-                          <p className="text-xs md:text-sm text-gray-600 mt-1 md:mt-1.5">{schedule.project || '-'}</p>
-                          {schedule.attendees && schedule.attendees.length > 1 && (
-                            <p className="text-xs md:text-sm text-gray-500 mt-1 md:mt-1.5">
-                              함께: {schedule.attendees.filter(a => a !== member).join(', ')}
-                            </p>
-                          )}
+                          <p className="font-medium text-gray-900 text-sm md:text-base leading-relaxed">
+                            <span className="text-gray-600">[{schedule.project || '-'}]</span> {schedule.title}
+                            {schedule.attendees && schedule.attendees.length > 1 && (
+                              <span className="text-gray-500 ml-2">
+                                (함께: {schedule.attendees.filter(a => a !== member).join(', ')})
+                              </span>
+                            )}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -97,17 +98,18 @@ const Dashboard = () => {
                       {upcomingSchedules.map((schedule) => (
                         <div key={schedule.id} className="border-l-3 border-gray-400 pl-3 md:pl-4 py-2 md:py-3 bg-gray-50 rounded-r">
                           <div className="flex items-start justify-between gap-2 md:gap-3">
-                            <p className="font-medium text-gray-900 text-sm md:text-base leading-relaxed flex-1">{schedule.title}</p>
+                            <p className="font-medium text-gray-900 text-sm md:text-base leading-relaxed flex-1">
+                              <span className="text-gray-600">[{schedule.project || '-'}]</span> {schedule.title}
+                              {schedule.attendees && schedule.attendees.length > 1 && (
+                                <span className="text-gray-500 ml-2">
+                                  (함께: {schedule.attendees.filter(a => a !== member).join(', ')})
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs md:text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
                               {format(new Date(schedule.start), 'MM.dd', { locale: ko })}
                             </p>
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600 mt-1 md:mt-1.5">{schedule.project || '-'}</p>
-                          {schedule.attendees && schedule.attendees.length > 1 && (
-                            <p className="text-xs md:text-sm text-gray-500 mt-1 md:mt-1.5">
-                              함께: {schedule.attendees.filter(a => a !== member).join(', ')}
-                            </p>
-                          )}
                         </div>
                       ))}
                     </div>
