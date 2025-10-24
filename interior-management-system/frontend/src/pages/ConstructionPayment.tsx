@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { X, Edit } from 'lucide-react';
 import { useDataStore } from '../store/dataStore';
+import additionalWorkService from '../services/additionalWorkService';
 import toast from 'react-hot-toast';
 
 interface PaymentRecord {
@@ -29,9 +30,11 @@ const ConstructionPayment = () => {
     addConstructionPaymentToAPI,
     updateConstructionPaymentInAPI,
     deleteConstructionPaymentFromAPI,
-    executionRecords
+    executionRecords,
+    payments
   } = useDataStore();
   const [records, setRecords] = useState<PaymentRecord[]>(constructionPayments);
+  const [additionalWorks, setAdditionalWorks] = useState<Array<{ _id: string; project: string; amount: number }>>([]);
 
   // Load construction payments from API on mount
   useEffect(() => {
@@ -45,6 +48,23 @@ const ConstructionPayment = () => {
         toast.error('공사대금 데이터를 불러오는데 실패했습니다');
       });
   }, [loadConstructionPaymentsFromAPI]);
+
+  // Load additional works from API
+  useEffect(() => {
+    console.log('💰 ConstructionPayment: Loading additional works from API...');
+    additionalWorkService.getAllAdditionalWorks()
+      .then(works => {
+        console.log('💰 ConstructionPayment: Additional works loaded:', works);
+        setAdditionalWorks(works.map(work => ({
+          _id: work._id,
+          project: work.project,
+          amount: work.amount
+        })));
+      })
+      .catch(error => {
+        console.error('💰 ConstructionPayment: Failed to load additional works:', error);
+      });
+  }, []);
 
   // 헤더의 + 버튼 클릭 이벤트 수신
   useEffect(() => {
@@ -413,13 +433,17 @@ const ConstructionPayment = () => {
     }
   };
 
-  // 총 계약금액 계산 (공사금액 + 부가세)
+  // 총 계약금액 계산 (공사금액 + 추가내역 + 부가세)
   const calculateTotalContractAmount = (record: PaymentRecord) => {
+    // 추가내역 금액 포함
+    const additionalWorkAmount = calculateAdditionalWorkTotal(record.project);
+    const baseAmount = record.totalAmount + additionalWorkAmount;
+
     if (record.vatType === 'amount') {
-      return record.totalAmount + (record.vatAmount || 0);
+      return baseAmount + (record.vatAmount || 0);
     } else {
-      const vatAmount = record.totalAmount * ((record.vatPercentage ?? 100) / 100) * 0.1;
-      return record.totalAmount + vatAmount;
+      const vatAmount = baseAmount * ((record.vatPercentage ?? 100) / 100) * 0.1;
+      return baseAmount + vatAmount;
     }
   };
 
@@ -448,11 +472,26 @@ const ConstructionPayment = () => {
     return totalContractAmount - calculateReceived(record);
   };
 
-  // 프로젝트별 실행내역 총 합계 계산
+  // 프로젝트별 실행내역 총 합계 계산 (승인/완료된 결제요청 포함)
   const calculateExecutionTotal = (projectName: string) => {
-    return executionRecords
+    // 실행내역 합계
+    const executionTotal = executionRecords
       .filter(record => record.project === projectName)
       .reduce((sum, record) => sum + (record.totalAmount || 0), 0);
+
+    // 승인/완료된 결제요청 합계 (부가세 포함 금액 그대로 사용)
+    const paymentTotal = payments
+      .filter(p => (p.status === 'approved' || p.status === 'completed') && p.project === projectName)
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
+    return executionTotal + paymentTotal;
+  };
+
+  // 프로젝트별 추가내역 총 합계 계산
+  const calculateAdditionalWorkTotal = (projectName: string) => {
+    return additionalWorks
+      .filter(work => work.project === projectName)
+      .reduce((sum, work) => sum + work.amount, 0);
   };
 
   // 검색 및 탭 필터링
@@ -575,8 +614,8 @@ const ConstructionPayment = () => {
                 </div>
               </div>
 
-              {/* Received, Execution Total & Remaining */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              {/* Received, Execution Total, Additional Work & Remaining */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                   <p className="text-xs text-gray-700 mb-1">수령금액</p>
                   <p className="text-base font-bold text-gray-800">
@@ -587,6 +626,12 @@ const ConstructionPayment = () => {
                   <p className="text-xs text-gray-700 mb-1">실행내역 합계</p>
                   <p className="text-base font-bold text-gray-800">
                     ₩{calculateExecutionTotal(record.project).toLocaleString()}
+                  </p>
+                </div>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-xs text-gray-700 mb-1">추가내역 합계</p>
+                  <p className="text-base font-bold text-gray-800">
+                    ₩{calculateAdditionalWorkTotal(record.project).toLocaleString()}
                   </p>
                 </div>
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
@@ -876,7 +921,7 @@ const ConstructionPayment = () => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-700 mb-1">수령금액</p>
                     <p className="text-lg font-bold text-gray-800">
@@ -887,6 +932,12 @@ const ConstructionPayment = () => {
                     <p className="text-xs text-gray-700 mb-1">실행내역 합계</p>
                     <p className="text-lg font-bold text-gray-800">
                       ₩{calculateExecutionTotal(selectedRecord.project).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-700 mb-1">추가내역 합계</p>
+                    <p className="text-lg font-bold text-gray-800">
+                      ₩{calculateAdditionalWorkTotal(selectedRecord.project).toLocaleString()}
                     </p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-lg">
