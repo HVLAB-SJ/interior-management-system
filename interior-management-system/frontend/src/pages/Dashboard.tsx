@@ -71,13 +71,28 @@ const Dashboard = () => {
                       <p className="text-xs font-semibold text-gray-900 uppercase">오늘</p>
                     </div>
                     <div className="space-y-2">
-                      {todaySchedules.map((schedule) => (
-                        <div key={schedule.id} className="border-l-3 border-gray-900 pl-3 py-2 bg-gray-50 rounded-r">
-                          <p className="font-medium text-gray-900 text-sm leading-relaxed">
-                            <span className="text-gray-600">[{schedule.project || '-'}]</span> {schedule.title}
-                          </p>
-                        </div>
-                      ))}
+                      {(() => {
+                        // 프로젝트별로 그룹화
+                        const grouped = todaySchedules.reduce((acc, schedule) => {
+                          const projectName = schedule.project || '-';
+                          if (!acc[projectName]) acc[projectName] = [];
+                          acc[projectName].push(schedule);
+                          return acc;
+                        }, {} as Record<string, typeof todaySchedules>);
+
+                        return Object.entries(grouped).map(([projectName, schedules]) => (
+                          <div key={projectName} className="border-l-3 border-gray-900 pl-3 py-2 bg-gray-50 rounded-r">
+                            <p className="font-medium text-gray-600 text-xs mb-1">[{projectName}]</p>
+                            <div className="space-y-0.5">
+                              {schedules.map((schedule) => (
+                                <p key={schedule.id} className="font-medium text-gray-900 text-sm leading-relaxed">
+                                  • {schedule.title}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
@@ -90,18 +105,33 @@ const Dashboard = () => {
                       <p className="text-xs font-semibold text-gray-600 uppercase">예정</p>
                     </div>
                     <div className="space-y-2">
-                      {upcomingSchedules.map((schedule) => (
-                        <div key={schedule.id} className="border-l-3 border-gray-400 pl-3 py-2 bg-gray-50 rounded-r">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-medium text-gray-900 text-sm leading-relaxed flex-1">
-                              <span className="text-gray-600">[{schedule.project || '-'}]</span> {schedule.title}
-                            </p>
-                            <p className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
-                              {format(new Date(schedule.start), 'MM.dd', { locale: ko })}
-                            </p>
+                      {(() => {
+                        // 날짜 + 프로젝트별로 그룹화
+                        const grouped = upcomingSchedules.reduce((acc, schedule) => {
+                          const dateKey = format(new Date(schedule.start), 'MM.dd', { locale: ko });
+                          const projectName = schedule.project || '-';
+                          const key = `${dateKey}|${projectName}`;
+                          if (!acc[key]) acc[key] = { date: dateKey, project: projectName, schedules: [] };
+                          acc[key].schedules.push(schedule);
+                          return acc;
+                        }, {} as Record<string, { date: string; project: string; schedules: typeof upcomingSchedules }>);
+
+                        return Object.values(grouped).map(({ date, project, schedules }) => (
+                          <div key={`${date}-${project}`} className="border-l-3 border-gray-400 pl-3 py-2 bg-gray-50 rounded-r">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <p className="font-medium text-gray-600 text-xs">[{project}]</p>
+                              <p className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">{date}</p>
+                            </div>
+                            <div className="space-y-0.5">
+                              {schedules.map((schedule) => (
+                                <p key={schedule.id} className="font-medium text-gray-900 text-sm leading-relaxed">
+                                  • {schedule.title}
+                                </p>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
