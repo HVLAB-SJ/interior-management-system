@@ -283,7 +283,7 @@ const Payments = () => {
                     <>
                       <button
                         onClick={() => {
-                          // KB스타뱅킹 앱 열기
+                          // 계좌 정보 복사
                           const { accountHolder, bankName, accountNumber } = payment.bankInfo || {};
 
                           if (!accountHolder || !accountNumber) {
@@ -291,25 +291,42 @@ const Payments = () => {
                             return;
                           }
 
-                          // KB스타뱅킹 앱 딥링크
-                          const kbScheme = `kbstar://transfer?amount=${payment.amount}&account=${accountNumber}&name=${encodeURIComponent(accountHolder)}`;
+                          // 계좌정보 복사
+                          const copyText = `${bankName}\n${accountNumber}\n${accountHolder}\n송금액: ${payment.amount.toLocaleString()}원`;
 
-                          // 앱이 설치되어 있지 않은 경우를 위한 대체 처리
-                          const startTime = Date.now();
-                          window.location.href = kbScheme;
+                          if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(copyText).then(() => {
+                              toast.success('계좌정보가 복사되었습니다\n뱅킹앱을 열어 붙여넣어주세요');
+                            }).catch(() => {
+                              // 클립보드 API 실패 시 대체 방법
+                              fallbackCopyTextToClipboard(copyText);
+                            });
+                          } else {
+                            // 클립보드 API 미지원 시 대체 방법
+                            fallbackCopyTextToClipboard(copyText);
+                          }
 
-                          setTimeout(() => {
-                            // 2초 후에도 페이지가 그대로면 앱이 없는 것으로 간주
-                            if (Date.now() - startTime < 2500) {
-                              // 계좌정보 복사
-                              const copyText = `${bankName}\n${accountNumber}\n${accountHolder}\n송금액: ${payment.amount.toLocaleString()}원`;
-                              navigator.clipboard.writeText(copyText).then(() => {
-                                toast.success('KB뱅킹 앱이 없어 계좌정보가 복사되었습니다');
-                              }).catch(() => {
-                                toast.error('계좌정보 복사 실패');
-                              });
+                          // 대체 복사 방법
+                          function fallbackCopyTextToClipboard(text: string) {
+                            const textArea = document.createElement('textarea');
+                            textArea.value = text;
+                            textArea.style.position = 'fixed';
+                            textArea.style.top = '0';
+                            textArea.style.left = '0';
+                            textArea.style.opacity = '0';
+                            document.body.appendChild(textArea);
+                            textArea.focus();
+                            textArea.select();
+
+                            try {
+                              document.execCommand('copy');
+                              toast.success('계좌정보가 복사되었습니다\n뱅킹앱을 열어 붙여넣어주세요');
+                            } catch (err) {
+                              toast.error('계좌정보 복사 실패');
                             }
-                          }, 2000);
+
+                            document.body.removeChild(textArea);
+                          }
                         }}
                         className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium whitespace-nowrap flex items-center justify-center gap-1"
                       >
