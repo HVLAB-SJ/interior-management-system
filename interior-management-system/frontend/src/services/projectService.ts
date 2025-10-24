@@ -111,37 +111,28 @@ const projectService = {
   // Create project
   createProject: async (data: ProjectData): Promise<ProjectResponse> => {
     // Convert frontend format to backend format
+    // Backend expects: client (string), location (string), startDate/endDate (YYYY-MM-DD), manager (string)
     const backendData: any = {
       name: data.name,
-      client: typeof data.client === 'string'
-        ? {
-            name: data.client || '미등록',
-            phone: '미등록',
-            address: '미등록'
-          }
-        : data.client,
-      location: typeof data.location === 'string'
-        ? {
-            address: data.location
-          }
-        : data.location,
-      status: data.status === 'in-progress' ? 'inProgress' : (data.status === 'on-hold' ? 'onHold' : data.status),
-      budget: data.contractAmount,
-      actualCost: data.spent || 0,
+      client: typeof data.client === 'string' ? data.client : data.client.name,
+      location: typeof data.location === 'string' ? data.location : data.location.address,
+      status: data.status || 'planning',
       manager: data.manager,
-      fieldManagers: data.team || [],
-      workers: [],
-      progress: data.progress || 0,
-      description: data.description
+      description: data.description || ''
     };
 
     // Only add dates if they exist
+    // Convert Date objects to YYYY-MM-DD format for SQLite
     if (data.startDate) {
-      backendData.startDate = data.startDate;
+      const dateObj = typeof data.startDate === 'string' ? new Date(data.startDate) : data.startDate;
+      backendData.startDate = dateObj.toISOString().split('T')[0];
     }
     if (data.endDate) {
-      backendData.endDate = data.endDate;
+      const dateObj = typeof data.endDate === 'string' ? new Date(data.endDate) : data.endDate;
+      backendData.endDate = dateObj.toISOString().split('T')[0];
     }
+
+    console.log('[projectService.createProject] Sending to backend:', backendData);
 
     const response = await api.post('/projects', backendData);
     return response.data;
@@ -149,75 +140,68 @@ const projectService = {
 
   // Update project
   updateProject: async (id: string, data: Partial<ProjectData>): Promise<ProjectResponse> => {
-    // First, get the existing project to preserve client and location data
-    const existingProject = await api.get(`/projects/${id}`);
-    const existing = existingProject.data;
-
-    // Log incoming data for debugging
-    console.log('projectService.updateProject - incoming data:', data);
-    console.log('projectService.updateProject - existing project:', existing);
-
     // Convert frontend format to backend format
+    // Backend expects: client (string), location (string), startDate/endDate (YYYY-MM-DD), manager (string)
     const backendData: any = {};
 
     if (data.name !== undefined) backendData.name = data.name;
     if (data.client !== undefined) {
-      // Preserve existing client data when only name is provided
-      if (typeof data.client === 'string') {
-        backendData.client = {
-          name: data.client,
-          phone: existing.client?.phone || '미등록',
-          email: existing.client?.email,
-          address: existing.client?.address || '미등록'
-        };
-      } else {
-        backendData.client = data.client;
-      }
+      backendData.client = typeof data.client === 'string' ? data.client : data.client.name;
     }
     if (data.location !== undefined) {
-      // Preserve existing location data when only address is provided
-      if (typeof data.location === 'string') {
-        backendData.location = {
-          address: data.location,
-          detailAddress: existing.location?.detailAddress,
-          coordinates: existing.location?.coordinates
-        };
+      backendData.location = typeof data.location === 'string' ? data.location : data.location.address;
+    }
+    if (data.startDate !== undefined) {
+      // If it's already in YYYY-MM-DD format, use it directly
+      if (typeof data.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.startDate)) {
+        backendData.startDate = data.startDate;
       } else {
-        backendData.location = data.location;
+        // Otherwise convert Date or ISO string to YYYY-MM-DD
+        const dateObj = typeof data.startDate === 'string' ? new Date(data.startDate) : data.startDate;
+        backendData.startDate = dateObj.toISOString().split('T')[0];
       }
     }
-    if (data.startDate !== undefined) backendData.startDate = data.startDate;
-    if (data.endDate !== undefined) backendData.endDate = data.endDate;
-    if (data.status !== undefined) {
-      backendData.status = data.status === 'in-progress' ? 'inProgress' : (data.status === 'on-hold' ? 'onHold' : data.status);
+    if (data.endDate !== undefined) {
+      // If it's already in YYYY-MM-DD format, use it directly
+      if (typeof data.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.endDate)) {
+        backendData.endDate = data.endDate;
+      } else {
+        // Otherwise convert Date or ISO string to YYYY-MM-DD
+        const dateObj = typeof data.endDate === 'string' ? new Date(data.endDate) : data.endDate;
+        backendData.endDate = dateObj.toISOString().split('T')[0];
+      }
     }
-    if (data.contractAmount !== undefined) backendData.budget = data.contractAmount;
-    if (data.spent !== undefined) backendData.actualCost = data.spent;
-    // Handle manager field - send it to backend regardless of format
-    // Backend will convert names to ObjectIds
+    if (data.status !== undefined) {
+      backendData.status = data.status;
+    }
     if (data.manager !== undefined) {
       backendData.manager = data.manager;
     }
-    // Don't include team field when updating - it will be handled separately if needed
-    // Team members are usually names, not ObjectIds, which causes validation errors
-    // If you need to update team members, use a separate API endpoint
-    if (data.progress !== undefined) backendData.progress = data.progress;
-    if (data.description !== undefined) backendData.description = data.description;
-    if (data.meetingNotes !== undefined) backendData.meetingNotes = data.meetingNotes;
-    if (data.customerRequests !== undefined) backendData.customerRequests = data.customerRequests;
-    if (data.entrancePassword !== undefined) backendData.entrancePassword = data.entrancePassword;
-    if (data.sitePassword !== undefined) backendData.sitePassword = data.sitePassword;
+    if (data.description !== undefined) {
+      backendData.description = data.description;
+    }
+    // Handle new fields for meeting notes, customer requests, and passwords
+    if (data.meetingNotes !== undefined) {
+      backendData.meetingNotes = data.meetingNotes;
+    }
+    if (data.customerRequests !== undefined) {
+      backendData.customerRequests = data.customerRequests;
+    }
+    if (data.entrancePassword !== undefined) {
+      backendData.entrancePassword = data.entrancePassword;
+    }
+    if (data.sitePassword !== undefined) {
+      backendData.sitePassword = data.sitePassword;
+    }
 
-    // Log final payload
-    console.log('projectService.updateProject - sending to backend:', backendData);
+    console.log('[projectService.updateProject] Sending to backend:', backendData);
 
     try {
       const response = await api.put(`/projects/${id}`, backendData);
       return response.data;
     } catch (error: any) {
-      console.error('projectService.updateProject - error:', error);
-      console.error('projectService.updateProject - error response:', error.response?.data);
-      console.error('projectService.updateProject - error status:', error.response?.status);
+      console.error('[projectService.updateProject] Error:', error);
+      console.error('[projectService.updateProject] Error response:', error.response?.data);
       throw error;
     }
   },

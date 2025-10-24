@@ -12,21 +12,29 @@ interface ProjectModalProps {
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
 
 const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
+  // Set defaultValues properly so form includes all fields even if not touched
+  const { register, handleSubmit, setValue, reset, formState: { errors }, watch } = useForm({
+    defaultValues: {
+      name: '',
+      client: '',
+      location: '',
+      startDate: '',
+      endDate: ''
+    }
+  });
   const [selectedManagers, setSelectedManagers] = useState<string[]>([]);
   const [customManager, setCustomManager] = useState('');
 
   useEffect(() => {
     if (project) {
-      setValue('name', project.name);
-      setValue('client', project.client);
-      setValue('location', project.location);
-      if (project.startDate) {
-        setValue('startDate', project.startDate.toISOString().split('T')[0]);
-      }
-      if (project.endDate) {
-        setValue('endDate', project.endDate.toISOString().split('T')[0]);
-      }
+      // Reset form with project data when editing
+      reset({
+        name: project.name,
+        client: project.client || '',
+        location: project.location,
+        startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
+        endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : ''
+      });
       // Parse manager field if it contains multiple managers
       // Filter out "미지정" (unassigned) entries
       const managers = project.manager
@@ -35,9 +43,16 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
       setSelectedManagers(managers);
     } else {
       // Reset when creating new project
+      reset({
+        name: '',
+        client: '',
+        location: '',
+        startDate: '',
+        endDate: ''
+      });
       setSelectedManagers([]);
     }
-  }, [project, setValue]);
+  }, [project, reset]);
 
   const toggleManager = (name: string) => {
     setSelectedManagers(prev =>
@@ -59,6 +74,8 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
   };
 
   const onSubmit = (data: any) => {
+    console.log('📋 ProjectModal onSubmit - Raw form data:', data);
+
     const formData: any = {
       name: data.name,
       client: data.client,
@@ -77,14 +94,37 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
       sitePassword: (project as any)?.sitePassword ?? ''
     };
 
-    // Only add dates if they exist
-    if (data.startDate) {
-      formData.startDate = new Date(data.startDate);
+    // Handle dates - preserve existing dates if not modified
+    // Send date strings directly (YYYY-MM-DD format) instead of Date objects
+    if (data.startDate && data.startDate !== '') {
+      formData.startDate = data.startDate; // Keep as string in YYYY-MM-DD format
+      console.log('📅 Setting startDate from form:', data.startDate);
+    } else if (project?.startDate) {
+      // When editing, if no new date provided, keep existing date
+      // Convert to YYYY-MM-DD format if it's an ISO string
+      const existingDate = typeof project.startDate === 'string' && project.startDate.includes('T')
+        ? project.startDate.split('T')[0]
+        : project.startDate;
+      formData.startDate = existingDate;
+      console.log('📅 Keeping existing startDate:', formData.startDate);
     }
-    if (data.endDate) {
-      formData.endDate = new Date(data.endDate);
-    }
+    // If no date at all, don't include the field
 
+    if (data.endDate && data.endDate !== '') {
+      formData.endDate = data.endDate; // Keep as string in YYYY-MM-DD format
+      console.log('📅 Setting endDate from form:', data.endDate);
+    } else if (project?.endDate) {
+      // When editing, if no new date provided, keep existing date
+      // Convert to YYYY-MM-DD format if it's an ISO string
+      const existingDate = typeof project.endDate === 'string' && project.endDate.includes('T')
+        ? project.endDate.split('T')[0]
+        : project.endDate;
+      formData.endDate = existingDate;
+      console.log('📅 Keeping existing endDate:', formData.endDate);
+    }
+    // If no date at all, don't include the field
+
+    console.log('📋 ProjectModal onSubmit - Final formData:', formData);
     onSave(formData);
   };
 
