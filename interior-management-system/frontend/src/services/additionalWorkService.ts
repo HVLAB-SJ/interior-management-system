@@ -34,13 +34,31 @@ const additionalWorkService = {
 
   // Create additional work
   createAdditionalWork: async (data: AdditionalWorkData): Promise<AdditionalWorkResponse> => {
-    const response = await api.post('/additional-works', data);
+    // Convert to backend format (camelCase -> snake_case)
+    const backendData = {
+      project_id: data.project,
+      description: data.description,
+      amount: data.amount,
+      work_date: data.date instanceof Date ? data.date.toISOString().split('T')[0] : data.date
+    };
+    const response = await api.post('/additional-works', backendData);
     return response.data;
   },
 
   // Update additional work
   updateAdditionalWork: async (id: string, data: Partial<AdditionalWorkData>): Promise<AdditionalWorkResponse> => {
-    const response = await api.put(`/additional-works/${id}`, data);
+    // Convert to backend format (camelCase -> snake_case)
+    const backendData: any = {};
+    if (data.project !== undefined) backendData.project = data.project;
+    if (data.description !== undefined) backendData.description = data.description;
+    if (data.amount !== undefined) backendData.amount = data.amount;
+    if (data.date !== undefined) {
+      backendData.work_date = data.date instanceof Date ? data.date.toISOString().split('T')[0] : data.date;
+    }
+
+    console.log('[additionalWorkService.updateAdditionalWork] Sending to backend:', backendData);
+
+    const response = await api.put(`/additional-works/${id}`, backendData);
     return response.data;
   },
 
