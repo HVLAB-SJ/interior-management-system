@@ -179,6 +179,8 @@ const WorkRequest = () => {
         toast.success('업무요청이 수정되었습니다');
       } else {
         // 추가
+        console.log('🔵 Creating work request with data:', data);
+
         const created = await workRequestService.createWorkRequest({
           project: data.project!,
           requestType: data.requestType!,
@@ -192,6 +194,8 @@ const WorkRequest = () => {
           notes: data.notes,
           completedDate: data.completedDate
         });
+
+        console.log('🟢 Backend response:', created);
 
         const newRequest: WorkRequest = {
           id: created._id,
@@ -210,17 +214,28 @@ const WorkRequest = () => {
 
         // 일정관리에 마감일 자동 추가
         try {
+          // 프로젝트 이름으로 프로젝트 ID 찾기
+          const matchingProject = projects.find(p => p.name === created.project);
+          const projectId = matchingProject ? matchingProject.id : null;
+
+          if (!projectId) {
+            console.warn('⚠️ Project not found for work request:', created.project);
+            // 프로젝트를 찾지 못하면 일정을 생성하지 않음
+            throw new Error('Project not found');
+          }
+
           await addScheduleToAPI({
             id: `workrequest-${created._id}`,
             title: `[업무요청] ${created.requestType}`,
             start: new Date(created.dueDate),
             end: new Date(created.dueDate),
             type: 'other',
-            project: created.project,
+            project: projectId, // 프로젝트 ID로 전달
             location: '',
             attendees: [created.assignedTo],
             description: `${created.description}\n\n담당자: ${created.assignedTo}\n요청자: ${created.requestedBy}\n우선순위: ${created.priority}\n${created.notes || ''}`
           });
+          console.log('✅ Schedule created with project ID:', projectId);
         } catch (schedError) {
           console.error('Failed to create schedule:', schedError);
           // 일정 생성 실패해도 업무요청은 생성됨
@@ -361,13 +376,18 @@ const WorkRequest = () => {
 
   const getPriorityBadge = (priority: string) => {
     const priorityConfig = {
-      low: { label: '낮음', color: 'text-gray-600' },
-      medium: { label: '보통', color: 'text-gray-600' },
-      high: { label: '긴급', color: 'text-gray-900' },
+      low: { label: '낮음', color: 'text-gray-600', bg: '', border: '' },
+      medium: { label: '보통', color: 'text-gray-600', bg: '', border: '' },
+      high: {
+        label: '긴급',
+        color: 'text-rose-700',
+        bg: 'bg-rose-50',
+        border: 'border border-rose-300'
+      },
     };
     const config = priorityConfig[priority as keyof typeof priorityConfig];
     return (
-      <span className={`text-xs font-medium ${config.color}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded ${config.color} ${config.bg} ${config.border}`}>
         {config.label}
       </span>
     );
@@ -525,12 +545,18 @@ const WorkRequest = () => {
       {/* Mobile Card View */}
       <div className="md:hidden space-y-3">
         {filteredRequests.map((request) => (
-          <div key={request.id} className="card p-3 hover:border-gray-400 transition-colors">
+          <div
+            key={request.id}
+            className={`card p-3 hover:border-gray-400 transition-colors ${
+              request.priority === 'high' ? 'border-2 border-rose-200 bg-rose-50/30' : ''
+            }`}
+          >
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   {getStatusBadge(request.status)}
                   {getDdayBadge(request.dueDate)}
+                  {request.priority === 'high' && getPriorityBadge(request.priority)}
                 </div>
                 <h3 className="font-bold text-base text-gray-900">{request.project}</h3>
                 <p className="text-xs text-gray-600 mt-0.5">{request.requestType}</p>
@@ -596,15 +622,15 @@ const WorkRequest = () => {
               {request.status === 'pending' && (
                 <button
                   onClick={() => handleStatusChange(request.id, 'in-progress')}
-                  className="flex-1 px-3 py-2 text-xs font-medium bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex-1 px-3 py-2 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                 >
-                  진행중으로 변경
+                  수락
                 </button>
               )}
               {request.status === 'in-progress' && (
                 <button
                   onClick={() => handleStatusChange(request.id, 'completed')}
-                  className="flex-1 px-3 py-2 text-xs font-medium bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex-1 px-3 py-2 text-xs font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   완료
                 </button>
@@ -639,7 +665,13 @@ const WorkRequest = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200" style={{ overflow: 'visible' }}>
             {filteredRequests.map((request) => (
-              <tr key={request.id} className="hover:bg-gray-50" style={{ overflow: 'visible' }}>
+              <tr
+                key={request.id}
+                className={`hover:bg-gray-50 ${
+                  request.priority === 'high' ? 'bg-rose-50/30' : ''
+                }`}
+                style={{ overflow: 'visible' }}
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <p className="font-medium text-gray-900">{request.project}</p>
                 </td>
@@ -766,6 +798,22 @@ const WorkRequest = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center justify-center space-x-2">
+                    {request.status === 'pending' && (
+                      <button
+                        onClick={() => handleStatusChange(request.id, 'in-progress')}
+                        className="px-3 py-1 text-xs font-semibold bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+                      >
+                        수락
+                      </button>
+                    )}
+                    {request.status === 'in-progress' && (
+                      <button
+                        onClick={() => handleStatusChange(request.id, 'completed')}
+                        className="px-3 py-1 text-xs font-semibold bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+                      >
+                        완료
+                      </button>
+                    )}
                     <button
                       onClick={() => handleEdit(request)}
                       className="text-xs text-gray-600 hover:text-gray-900"
