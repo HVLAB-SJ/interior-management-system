@@ -13,7 +13,7 @@ import { getBankCode } from '../utils/bankCodes';
 type TabStatus = 'pending' | 'completed' | 'all';
 
 const Payments = () => {
-  const { payments, loadPaymentsFromAPI, updatePaymentInAPI, addPaymentToAPI, addExecutionRecord, updateExecutionRecord, executionRecords } = useDataStore();
+  const { payments, loadPaymentsFromAPI, updatePaymentInAPI, addPaymentToAPI, addExecutionRecord, updateExecutionRecord, deleteExecutionRecord, executionRecords } = useDataStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<TabStatus>('pending');
@@ -90,6 +90,16 @@ const Payments = () => {
       if (newStatus === 'completed') {
         const payment = payments.find(p => p.id === paymentId);
         if (payment) {
+          // 이미 해당 paymentId로 실행내역이 생성되어 있는지 확인
+          const existingRecord = executionRecords.find(r => r.paymentId === paymentId);
+          if (existingRecord) {
+            console.log('실행내역이 이미 존재합니다:', paymentId);
+            // 이미 실행내역이 있으면 상태만 업데이트하고 종료
+            await paymentService.updatePaymentStatus(paymentId, newStatus);
+            await loadPaymentsFromAPI();
+            toast.info('이미 실행내역이 생성된 결제입니다');
+            return;
+          }
 
           const now = new Date();
           const materialCost = payment.materialAmount || 0;
@@ -235,6 +245,18 @@ const Payments = () => {
           let materialSupplyAmount = materialCost;
           let laborSupplyAmount = laborCost;
           const totalAmount = payment.amount;
+
+          // 중복 실행내역 삭제 (2개 이상일 경우)
+          if (linkedRecords.length > 1) {
+            console.log(`중복 실행내역 발견: ${linkedRecords.length}개 (Payment ID: ${payment.id})`);
+            // 첫 번째를 제외한 나머지 삭제
+            for (let i = 1; i < linkedRecords.length; i++) {
+              const duplicateRecord = linkedRecords[i];
+              console.log(`중복 실행내역 삭제: ${duplicateRecord.id}`);
+              deleteExecutionRecord(duplicateRecord.id);
+            }
+            toast.info(`${linkedRecords.length - 1}개의 중복 실행내역을 삭제했습니다`);
+          }
 
           if (payment.includesVAT) {
             // 부가세 포함인 경우: 각각 부가세 역산
