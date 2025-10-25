@@ -157,8 +157,10 @@ const ExecutionHistory = () => {
   }, [handlePaste]);
 
   // 승인된 결제요청을 실행내역 형식으로 변환
+  // 이미 executionRecord가 생성된 payment는 제외
   const paymentRecords = payments
-    .filter(p => p.status === 'approved' || p.status === 'completed')
+    .filter(p => (p.status === 'approved' || p.status === 'completed') &&
+            !executionRecords.some(r => r.paymentId === p.id))
     .map(payment => {
       // 결제요청에서 자재비와 인건비 가져오기
       const materialCost = payment.materialAmount || 0;
