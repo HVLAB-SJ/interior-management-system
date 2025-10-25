@@ -824,16 +824,24 @@ const ExecutionHistory = () => {
                 {selectedRecord && (
                   <button
                     onClick={() => {
-                      // manual 타입인 레코드만 삭제 가능
-                      const record = executionRecords.find(r => r.id === selectedRecord);
-                      if (record) {
+                      // executionRecords에 있는 레코드 찾기
+                      const execRecord = executionRecords.find(r => r.id === selectedRecord);
+
+                      // allRecords에서 선택된 레코드 찾기
+                      const selectedItem = allRecords.find(r => r.id === selectedRecord);
+
+                      if (execRecord) {
+                        // executionRecords에 있는 레코드는 삭제 가능
                         if (confirm('선택한 실행내역을 삭제하시겠습니까?')) {
                           deleteExecutionRecord(selectedRecord);
                           setSelectedRecord(null);
                           toast.success('실행내역이 삭제되었습니다');
                         }
+                      } else if (selectedItem?.type === 'payment') {
+                        // payment 타입(결제요청 자동 표시)은 삭제 불가
+                        toast.error('승인/완료된 결제요청은 결제요청 메뉴에서 상태를 변경해주세요');
                       } else {
-                        toast.error('결제요청은 삭제할 수 없습니다');
+                        toast.error('삭제할 수 없는 항목입니다');
                       }
                     }}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
