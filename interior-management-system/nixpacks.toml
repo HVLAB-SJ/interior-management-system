@@ -8,7 +8,7 @@ cmds = ["cd frontend && npm ci"]
 cmds = ["cd frontend && npm run build"]
 
 [start]
-cmd = "cd frontend && npx serve -s dist -l ${PORT:-3000}"
+cmd = "cd frontend && npm start"
 
 [variables]
 NODE_ENV = "production"
