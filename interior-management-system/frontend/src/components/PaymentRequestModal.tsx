@@ -931,9 +931,8 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled
                 >
-                  확인
+                  수정하기
                 </button>
               )}
             </div>
