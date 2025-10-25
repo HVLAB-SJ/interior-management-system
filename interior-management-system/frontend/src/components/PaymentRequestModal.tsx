@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Upload, Image as ImageIcon, FileText, Trash2, Smartphone, Copy } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, FileText, Trash2, AlertCircle } from 'lucide-react';
 import { useDataStore } from '../store/dataStore';
 import { useAuth } from '../contexts/AuthContext';
 import contractorService from '../services/contractorService';
@@ -11,6 +11,42 @@ interface PaymentRequestModalProps {
   onClose: () => void;
   onSave: (data: any) => void;
 }
+
+// List of Korean position titles (same as in Contractors.tsx)
+const positions = [
+  '대표이사', '부사장', '전무', '상무', '이사', '실장', '부장', '차장', '과장', '대리',
+  '주임', '사원', '팀장', '소장', '대표', '사장', '회장', '반장', '현장', '본부장',
+  '팀원', '파트장', '조장', '감독', '기사', '수석', '책임'
+];
+
+// Remove position from name (same logic as Contractors.tsx)
+const removePosition = (name: string): string => {
+  if (!name) return name;
+
+  // Remove "님" suffix first if present
+  let cleanName = name.replace(/님$/g, '').trim();
+
+  // Check if position is separated by space
+  const parts = cleanName.split(' ');
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    for (const position of positions) {
+      if (lastPart === position) {
+        // Return everything except the last part (position)
+        return parts.slice(0, -1).join(' ').trim();
+      }
+    }
+  }
+
+  // Remove position if found at the end (attached to name)
+  for (const position of positions) {
+    if (cleanName.endsWith(position)) {
+      return cleanName.substring(0, cleanName.length - position.length).trim();
+    }
+  }
+
+  return cleanName;
+};
 
 const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalProps) => {
   const { register, handleSubmit, setValue, formState: { errors } } = useForm();
@@ -23,6 +59,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
   const [isUrgent, setIsUrgent] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState('');
   const [recommendedContractors, setRecommendedContractors] = useState<any[]>([]);
+  const [selectedContractorId, setSelectedContractorId] = useState<string | null>(null);
   const [applyTaxDeduction, setApplyTaxDeduction] = useState(false);
   const [includesVAT, setIncludesVAT] = useState(false);
   const [materialAmount, setMaterialAmount] = useState<number>(0);
@@ -154,32 +191,20 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
   // 협력업체 선택 시 계좌 정보 자동 입력
   const handleContractorSelect = (contractor: any) => {
-    // 예금주에 이름 입력 (직책 제거)
-    let name = contractor.name;
+    // 선택된 협력업체 ID 설정
+    setSelectedContractorId(contractor.id || contractor._id);
 
-    // 괄호 안의 내용 제거 (예: "고정훈 실장(시공)" -> "고정훈 실장")
-    name = name.replace(/\([^)]*\)/g, '').trim();
+    // 예금주에 이름 입력 (removePosition 함수로 직책 제거)
+    const cleanName = removePosition(contractor.name);
+    setValue('accountHolder', cleanName);
 
-    // 직책 제거 (반장, 실장, 대표, 사장, 팀장, 과장, 차장, 부장, 이사, 전무, 상무, 사원, 대리, 주임, 책임 등)
-    const titles = [
-      '반장', '실장', '대표', '사장', '팀장', '과장', '차장', '부장',
-      '이사', '전무', '상무', '사원', '대리', '주임', '책임', '센터',
-      '매니저', '기사', '실장님', '대표님', '사장님'
-    ];
-
-    titles.forEach(title => {
-      // 끝에 직책이 있는 경우 제거
-      if (name.endsWith(title)) {
-        name = name.slice(0, -title.length).trim();
+    // 직책이 '반장'인 경우 항목명이 비어있으면 '인건비'로 자동 입력
+    if (contractor.position && contractor.position.includes('반장')) {
+      const currentItemName = watch('itemName');
+      if (!currentItemName || currentItemName.trim() === '') {
+        setValue('itemName', '인건비');
       }
-      // 중간에 공백과 함께 직책이 있는 경우 제거
-      const withSpace = ' ' + title;
-      if (name.includes(withSpace)) {
-        name = name.replace(withSpace, '').trim();
-      }
-    });
-
-    setValue('accountHolder', name);
+    }
 
     // 계좌번호가 있는 경우 계좌번호에서 은행명과 계좌번호 분리
     if (contractor.accountNumber && contractor.accountNumber.trim() !== '') {
@@ -297,44 +322,45 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-          {/* Project */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              프로젝트 *
-            </label>
-            <select
-              {...register('projectId', { required: '프로젝트를 선택하세요' })}
-              className="input"
-              disabled={!!payment}
-            >
-              <option value="">선택하세요</option>
-              {projects
-                .filter(project => project.status !== 'completed')
-                .map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-            </select>
-            {errors.projectId && (
-              <p className="mt-1 text-sm text-red-600">{String(errors.projectId.message)}</p>
-            )}
-          </div>
+          {/* Project and Requested By */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                프로젝트 *
+              </label>
+              <select
+                {...register('projectId', { required: '프로젝트를 선택하세요' })}
+                className="input"
+                disabled={!!payment}
+              >
+                <option value="">선택하세요</option>
+                {projects
+                  .filter(project => project.status !== 'completed')
+                  .map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+              </select>
+              {errors.projectId && (
+                <p className="mt-1 text-sm text-red-600">{String(errors.projectId.message)}</p>
+              )}
+            </div>
 
-          {/* Requested By */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              요청자 *
-            </label>
-            <input
-              {...register('requestedBy', { required: '요청자를 입력하세요' })}
-              type="text"
-              className="input"
-              placeholder="요청자 이름"
-            />
-            {errors.requestedBy && (
-              <p className="mt-1 text-sm text-red-600">{String(errors.requestedBy.message)}</p>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                요청자 *
+              </label>
+              <input
+                {...register('requestedBy', { required: '요청자를 입력하세요' })}
+                type="text"
+                className="input"
+                placeholder="요청자 이름"
+              />
+              {errors.requestedBy && (
+                <p className="mt-1 text-sm text-red-600">{String(errors.requestedBy.message)}</p>
+              )}
+            </div>
           </div>
 
           {/* Process & Item Name */}
@@ -395,13 +421,20 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                       type="button"
                       onClick={() => handleContractorSelect(contractor)}
                       className={`text-left p-3 bg-white border rounded-lg transition-colors ${
-                        hasAccountNumber
-                          ? 'border-amber-300 hover:bg-amber-100 hover:border-amber-400'
-                          : 'border-blue-200 hover:bg-blue-50 hover:border-blue-300'
+                        selectedContractorId === (contractor.id || contractor._id)
+                          ? hasAccountNumber
+                            ? 'bg-amber-100 border-amber-400'
+                            : 'bg-blue-50 border-blue-300'
+                          : hasAccountNumber
+                            ? 'border-amber-300 hover:bg-amber-100 hover:border-amber-400'
+                            : 'border-blue-200 hover:bg-blue-50 hover:border-blue-300'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="font-medium text-gray-900">{contractor.name}</div>
+                        <div className="font-medium text-gray-900">
+                          {removePosition(contractor.name)}
+                          {contractor.position && ` (${contractor.position})`}
+                        </div>
                         {hasAccountNumber ? (
                           <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">계좌등록</span>
                         ) : (
@@ -432,27 +465,27 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
             </div>
           )}
 
-          {/* Material Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              자재비 (원)
-            </label>
-            <input
-              type="number"
-              className="input"
-              placeholder="0"
-              value={materialAmount || ''}
-              onChange={(e) => {
-                const value = e.target.value === '' ? 0 : Number(e.target.value);
-                console.log('Material amount input:', e.target.value, '→', value);
-                setMaterialAmount(value);
-                setValue('materialAmount', value);
-              }}
-            />
-          </div>
+          {/* Material and Labor Amount */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                자재비 (원)
+              </label>
+              <input
+                type="number"
+                className="input"
+                placeholder="0"
+                value={materialAmount || ''}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : Number(e.target.value);
+                  console.log('Material amount input:', e.target.value, '→', value);
+                  setMaterialAmount(value);
+                  setValue('materialAmount', value);
+                }}
+              />
+            </div>
 
-          {/* Labor Amount */}
-          <div>
+            <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               인건비 (원)
             </label>
@@ -499,19 +532,6 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                   3.3% 세금 공제 (프리랜서/개인사업자)
                 </span>
               </label>
-              {applyTaxDeduction && originalLaborAmount > 0 && (
-                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-900">
-                    <span className="font-medium">공제 전:</span> {originalLaborAmount.toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-blue-900 mt-1">
-                    <span className="font-medium">공제 후:</span> {Math.round(originalLaborAmount * 0.967).toLocaleString()}원
-                    <span className="text-xs text-blue-700 ml-2">
-                      (세금: {Math.round(originalLaborAmount * 0.033).toLocaleString()}원)
-                    </span>
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* VAT Checkbox */}
@@ -565,6 +585,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               )}
             </div>
           </div>
+          </div>
 
           {/* Total Amount */}
           {(materialAmount > 0 || laborAmount > 0) && (
@@ -590,41 +611,10 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
             </div>
           )}
 
-          {/* Urgency Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              긴급도
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsUrgent(false)}
-                className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                  !isUrgent
-                    ? 'border-gray-900 bg-gray-900 text-white'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                일반
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsUrgent(true)}
-                className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                  isUrgent
-                    ? 'border-red-600 bg-red-600 text-white'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                🚨 긴급
-              </button>
-            </div>
-          </div>
-
           {/* Bank Info */}
           <div className="border-t pt-6">
             <h3 className="text-lg font-medium mb-4">계좌 정보</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   예금주 *
@@ -706,105 +696,24 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 />
               </div>
             </div>
+          </div>
 
-            {/* Banking App Integration Buttons */}
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex flex-wrap gap-2">
-                {/* KB Banking App Deep Link */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const amount = materialAmount + laborAmount;
-                    const accountHolder = (document.getElementById('accountHolder') as HTMLInputElement)?.value;
-                    const bankName = (document.getElementById('bankName') as HTMLSelectElement)?.value;
-                    const accountNumber = (document.getElementById('accountNumber') as HTMLInputElement)?.value;
-
-                    if (!accountHolder || !bankName || !accountNumber) {
-                      toast.error('계좌 정보를 모두 입력해주세요');
-                      return;
-                    }
-
-                    // KB스타뱅킹 앱 딥링크
-                    // 실제 KB앱 스킴은 다를 수 있으므로 KB 개발자 문서 확인 필요
-                    const kbScheme = `kbstar://transfer?amount=${amount}&account=${accountNumber}&name=${encodeURIComponent(accountHolder)}`;
-
-                    // 앱이 설치되어 있지 않은 경우를 위한 대체 처리
-                    const startTime = Date.now();
-                    window.location.href = kbScheme;
-
-                    setTimeout(() => {
-                      // 2초 후에도 페이지가 그대로면 앱이 없는 것으로 간주
-                      if (Date.now() - startTime < 2500) {
-                        toast.error('KB스타뱅킹 앱이 설치되어 있지 않습니다. 계좌정보를 복사해주세요.');
-                      }
-                    }, 2000);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Smartphone className="h-4 w-4" />
-                  KB스타뱅킹 앱 열기
-                </button>
-
-                {/* Copy Account Info */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const accountHolder = (document.getElementById('accountHolder') as HTMLInputElement)?.value;
-                    const bankName = (document.getElementById('bankName') as HTMLSelectElement)?.value;
-                    const accountNumber = (document.getElementById('accountNumber') as HTMLInputElement)?.value;
-                    const amount = materialAmount + laborAmount;
-
-                    if (!accountHolder || !bankName || !accountNumber) {
-                      toast.error('계좌 정보를 모두 입력해주세요');
-                      return;
-                    }
-
-                    const copyText = `${bankName}\n${accountNumber}\n${accountHolder}\n송금액: ${amount.toLocaleString()}원`;
-
-                    navigator.clipboard.writeText(copyText).then(() => {
-                      toast.success('계좌 정보가 복사되었습니다');
-                    }).catch(() => {
-                      toast.error('복사 실패. 수동으로 복사해주세요.');
-                    });
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  <Copy className="h-4 w-4" />
-                  계좌정보 복사
-                </button>
-
-                {/* Copy Account Number Only */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const accountNumber = (document.getElementById('accountNumber') as HTMLInputElement)?.value;
-
-                    if (!accountNumber) {
-                      toast.error('계좌번호를 입력해주세요');
-                      return;
-                    }
-
-                    navigator.clipboard.writeText(accountNumber).then(() => {
-                      toast.success('계좌번호가 복사되었습니다');
-                    }).catch(() => {
-                      toast.error('복사 실패');
-                    });
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  계좌번호만 복사
-                </button>
-              </div>
-
-              <div className="mt-3 text-xs text-blue-700">
-                <p>💡 모바일에서 사용 시:</p>
-                <ul className="list-disc list-inside mt-1 space-y-1">
-                  <li>KB스타뱅킹 앱이 설치되어 있으면 자동으로 앱이 열립니다</li>
-                  <li>앱이 없으면 계좌정보를 복사하여 수동으로 입력하세요</li>
-                  <li>송금액이 자동으로 포함되어 있습니다</li>
-                </ul>
-              </div>
-            </div>
+          {/* Urgency Button */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsUrgent(!isUrgent)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all w-full ${
+                isUrgent
+                  ? 'bg-rose-50 border-rose-500 text-rose-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <AlertCircle className={`h-5 w-5 ${isUrgent ? 'text-rose-600' : 'text-gray-400'}`} />
+              <span className="font-medium">
+                {isUrgent ? '긴급 결제입니다' : '긴급 결제'}
+              </span>
+            </button>
           </div>
 
           {/* Attachments */}
