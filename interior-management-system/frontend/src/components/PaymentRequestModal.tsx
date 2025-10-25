@@ -49,7 +49,7 @@ const removePosition = (name: string): string => {
 };
 
 const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalProps) => {
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm();
   const { projects, payments } = useDataStore();
   const { user } = useAuth();
   const [contractors, setContractors] = useState<any[]>([]);
@@ -198,8 +198,34 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
     const cleanName = removePosition(contractor.name);
     setValue('accountHolder', cleanName);
 
+    // contractor.name에서 직책 추출
+    const name = contractor.name || '';
+    let position = '';
+
+    // 이름과 직책이 공백으로 분리된 경우
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      const lastPart = parts[parts.length - 1];
+      for (const pos of positions) {
+        if (lastPart === pos) {
+          position = pos;
+          break;
+        }
+      }
+    }
+
+    // 직책이 공백 없이 붙어있는 경우
+    if (!position) {
+      for (const pos of positions) {
+        if (name.endsWith(pos)) {
+          position = pos;
+          break;
+        }
+      }
+    }
+
     // 직책이 '반장'인 경우 항목명이 비어있으면 '인건비'로 자동 입력
-    if (contractor.position && contractor.position.includes('반장')) {
+    if (position === '반장') {
       const currentItemName = watch('itemName');
       if (!currentItemName || currentItemName.trim() === '') {
         setValue('itemName', '인건비');
@@ -415,6 +441,33 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                 {recommendedContractors.map((contractor) => {
                   const hasAccountNumber = contractor.accountNumber && contractor.accountNumber.trim() !== '';
+
+                  // contractor.name에서 직책 추출
+                  const name = contractor.name || '';
+                  let extractedPosition = '';
+
+                  // 이름과 직책이 공백으로 분리된 경우
+                  const parts = name.split(' ');
+                  if (parts.length >= 2) {
+                    const lastPart = parts[parts.length - 1];
+                    for (const pos of positions) {
+                      if (lastPart === pos) {
+                        extractedPosition = pos;
+                        break;
+                      }
+                    }
+                  }
+
+                  // 직책이 공백 없이 붙어있는 경우
+                  if (!extractedPosition) {
+                    for (const pos of positions) {
+                      if (name.endsWith(pos)) {
+                        extractedPosition = pos;
+                        break;
+                      }
+                    }
+                  }
+
                   return (
                     <button
                       key={contractor.id}
@@ -433,7 +486,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-gray-900">
                           {removePosition(contractor.name)}
-                          {contractor.position && ` (${contractor.position})`}
+                          {extractedPosition && ` (${extractedPosition})`}
                         </div>
                         {hasAccountNumber ? (
                           <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded">계좌등록</span>
@@ -614,8 +667,8 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
           {/* Bank Info */}
           <div className="w-full border-t pt-6">
             <h3 className="text-lg font-medium mb-4">계좌 정보</h3>
-            <div className="w-full space-y-4">
-              <div className="w-full">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   예금주 *
                 </label>
@@ -628,7 +681,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 />
               </div>
 
-              <div className="w-full">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   은행명 *
                 </label>
@@ -683,7 +736,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 </select>
               </div>
 
-              <div className="w-full">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   계좌번호 *
                 </label>
@@ -696,24 +749,6 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 />
               </div>
             </div>
-          </div>
-
-          {/* Urgency Button */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setIsUrgent(!isUrgent)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all w-full ${
-                isUrgent
-                  ? 'bg-rose-50 border-rose-500 text-rose-700'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <AlertCircle className={`h-5 w-5 ${isUrgent ? 'text-rose-600' : 'text-gray-400'}`} />
-              <span className="font-medium">
-                {isUrgent ? '긴급 결제입니다' : '긴급 결제'}
-              </span>
-            </button>
           </div>
 
           {/* Attachments */}
