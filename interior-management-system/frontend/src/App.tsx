@@ -29,6 +29,7 @@ const queryClient = new QueryClient({
 
 function App() {
   useEffect(() => {
+    // Version 1.0.5 - Updated 2025.10.26
     // 브라우저 알림 권한 요청
     requestNotificationPermission();
 
