@@ -2,13 +2,13 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["cd backend && npm ci --include=dev"]
+cmds = ["cd frontend && npm ci"]
 
 [phases.build]
-cmds = ["cd backend && npm run build"]
+cmds = ["cd frontend && npm run build"]
 
 [start]
-cmd = "cd backend && npm start"
+cmd = "cd frontend && npx serve -s dist -l ${PORT:-3000}"
 
 [variables]
 NODE_ENV = "production"
