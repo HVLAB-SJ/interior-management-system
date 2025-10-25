@@ -433,9 +433,20 @@ const ConstructionPayment = () => {
     }
   };
 
-  // 총 계약금액 계산 (공사금액 + 추가내역 + 부가세)
+  // 총 계약금액 계산 (공사금액 + 부가세) - 추가내역 제외
   const calculateTotalContractAmount = (record: PaymentRecord) => {
-    // 추가내역 금액 포함
+    const baseAmount = record.totalAmount;  // 추가내역 제외
+
+    if (record.vatType === 'amount') {
+      return baseAmount + (record.vatAmount || 0);
+    } else {
+      const vatAmount = baseAmount * ((record.vatPercentage ?? 100) / 100) * 0.1;
+      return baseAmount + vatAmount;
+    }
+  };
+
+  // 미수금 계산용 총 금액 (공사금액 + 추가내역 + 부가세)
+  const calculateTotalAmountWithAdditional = (record: PaymentRecord) => {
     const additionalWorkAmount = calculateAdditionalWorkTotal(record.project);
     const baseAmount = record.totalAmount + additionalWorkAmount;
 
@@ -468,8 +479,9 @@ const ConstructionPayment = () => {
   };
 
   const calculateRemaining = (record: PaymentRecord) => {
-    const totalContractAmount = calculateTotalContractAmount(record);
-    return totalContractAmount - calculateReceived(record);
+    // 미수금 계산시에는 추가내역 포함
+    const totalWithAdditional = calculateTotalAmountWithAdditional(record);
+    return totalWithAdditional - calculateReceived(record);
   };
 
   // 프로젝트별 실행내역 총 합계 계산 (승인/완료된 결제요청 포함)
@@ -685,41 +697,87 @@ const ConstructionPayment = () => {
             <div className="p-6">
               {/* Payment Schedule */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-4">예상 수금 일정</h3>
+                <h3 className="text-lg font-semibold mb-4">수금 일정</h3>
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <div className="space-y-3">
-                    {calculatePaymentSchedule(selectedRecord).map((schedule, idx) => (
-                      <div key={idx} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <span className={`px-2 py-1 text-xs font-medium rounded ${
-                            schedule.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            schedule.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {schedule.type}
-                          </span>
-                          <span className="text-sm text-gray-700">
-                            {schedule.date ? format(schedule.date, 'yyyy년 MM월 dd일') : '날짜 미정'}
-                            {schedule.status === 'completed' && schedule.actualDate && (
-                              <span className="text-green-600 ml-2">
-                                (실제: {format(schedule.actualDate, 'MM/dd')})
+                    {calculatePaymentSchedule(selectedRecord).map((schedule, idx) => {
+                      // 수금 타입에 따른 필드명 매핑
+                      const typeFieldMap: { [key: string]: 'contract' | 'start' | 'middle' | 'final' } = {
+                        '계약금': 'contract',
+                        '착수금': 'start',
+                        '중도금': 'middle',
+                        '잔금': 'final'
+                      };
+                      const fieldName = typeFieldMap[schedule.type];
+
+                      return (
+                        <div key={idx} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center space-x-3 flex-1">
+                            <span className={`px-2 py-1 text-xs font-medium rounded ${
+                              schedule.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              schedule.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {schedule.type}
+                            </span>
+                            {schedule.status !== 'completed' ? (
+                              <input
+                                type="date"
+                                value={selectedRecord.expectedPaymentDates?.[fieldName]
+                                  ? format(new Date(selectedRecord.expectedPaymentDates[fieldName]!), 'yyyy-MM-dd')
+                                  : schedule.date ? format(schedule.date, 'yyyy-MM-dd') : ''}
+                                onChange={async (e) => {
+                                  const newDate = e.target.value ? new Date(e.target.value) : null;
+                                  const updatedDates = {
+                                    ...selectedRecord.expectedPaymentDates,
+                                    [fieldName]: newDate
+                                  };
+                                  const updatedRecord = {
+                                    ...selectedRecord,
+                                    expectedPaymentDates: updatedDates
+                                  };
+                                  setSelectedRecord(updatedRecord);
+                                  try {
+                                    await updateConstructionPaymentInAPI(selectedRecord.id, {
+                                      expectedPaymentDates: updatedDates
+                                    });
+                                    const updatedRecords = records.map(r =>
+                                      r.id === selectedRecord.id ? updatedRecord : r
+                                    );
+                                    setRecords(updatedRecords);
+                                    toast.success('수금 일정이 수정되었습니다');
+                                  } catch (error) {
+                                    console.error('Failed to update payment date:', error);
+                                    toast.error('일정 수정에 실패했습니다');
+                                  }
+                                }}
+                                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-600"
+                              />
+                            ) : (
+                              <span className="text-sm text-gray-700">
+                                {schedule.date ? format(schedule.date, 'yyyy년 MM월 dd일') : '날짜 미정'}
+                                {schedule.actualDate && (
+                                  <span className="text-green-600 ml-2">
+                                    (실제: {format(schedule.actualDate, 'MM/dd')})
+                                  </span>
+                                )}
                               </span>
                             )}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">
-                            ₩{schedule.amount.toLocaleString()}
-                            <span className="text-xs text-gray-500 ml-1">({schedule.percentage}%)</span>
-                          </p>
-                          {schedule.status === 'completed' && schedule.actualAmount && (
-                            <p className="text-xs text-green-600">
-                              실제: ₩{schedule.actualAmount.toLocaleString()}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              ₩{schedule.amount.toLocaleString()}
+                              <span className="text-xs text-gray-500 ml-1">({schedule.percentage}%)</span>
                             </p>
-                          )}
+                            {schedule.status === 'completed' && schedule.actualAmount && (
+                              <p className="text-xs text-green-600">
+                                실제: ₩{schedule.actualAmount.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <div className="mt-4 pt-3 border-t border-gray-200">
                     <div className="flex justify-between text-sm">

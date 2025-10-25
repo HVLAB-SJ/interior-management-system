@@ -34,27 +34,30 @@ const additionalWorkService = {
 
   // Create additional work
   createAdditionalWork: async (data: AdditionalWorkData): Promise<AdditionalWorkResponse> => {
-    // Convert to backend format (camelCase -> snake_case)
+    // Send project name (not project_id) - backend will look up the ID
     const backendData = {
-      project_id: data.project,
+      project: data.project,  // Send project name, backend will convert to project_id
       description: data.description,
       amount: data.amount,
-      work_date: data.date instanceof Date ? data.date.toISOString().split('T')[0] : data.date
+      work_date: data.date instanceof Date ? data.date.toISOString().split('T')[0] : data.date,
+      notes: data.notes || ''
     };
+    console.log('[additionalWorkService.createAdditionalWork] Sending to backend:', backendData);
     const response = await api.post('/additional-works', backendData);
     return response.data;
   },
 
   // Update additional work
   updateAdditionalWork: async (id: string, data: Partial<AdditionalWorkData>): Promise<AdditionalWorkResponse> => {
-    // Convert to backend format (camelCase -> snake_case)
+    // Send project name (not project_id) - backend will look up the ID
     const backendData: any = {};
-    if (data.project !== undefined) backendData.project = data.project;
+    if (data.project !== undefined) backendData.project = data.project;  // Send project name
     if (data.description !== undefined) backendData.description = data.description;
     if (data.amount !== undefined) backendData.amount = data.amount;
     if (data.date !== undefined) {
       backendData.work_date = data.date instanceof Date ? data.date.toISOString().split('T')[0] : data.date;
     }
+    if (data.notes !== undefined) backendData.notes = data.notes;
 
     console.log('[additionalWorkService.updateAdditionalWork] Sending to backend:', backendData);
 

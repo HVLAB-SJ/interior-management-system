@@ -353,7 +353,7 @@ const Payments = () => {
                             toast.error('송금 처리 중 오류가 발생했습니다');
                           }
                         }}
-                        className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium whitespace-nowrap flex items-center justify-center gap-1"
+                        className="flex-1 lg:flex-none text-xs md:text-sm px-3 md:px-4 py-2 bg-slate-500 text-white rounded hover:bg-slate-600 font-medium whitespace-nowrap flex items-center justify-center gap-1"
                         title="KB은행 자동 송금 (무료)"
                       >
                         <Zap className="w-3 h-3 md:w-3.5 md:h-3.5" />
@@ -468,6 +468,11 @@ const Payments = () => {
                   process: data.process,
                   itemName: data.itemName,
                   amount: Number(data.amount),
+                  materialAmount: data.materialAmount || 0,
+                  laborAmount: data.laborAmount || 0,
+                  originalLaborAmount: data.originalLaborAmount || 0,
+                  applyTaxDeduction: data.applyTaxDeduction || false,
+                  includesVAT: data.includesVAT || false,
                   category: data.category,
                   status: 'pending',
                   urgency: data.urgency || 'normal',

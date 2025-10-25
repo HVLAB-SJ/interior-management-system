@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -21,7 +21,6 @@ const Projects = () => {
     deleteProjectFromAPI
   } = useDataStore();
   const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<TabStatus>('in-progress');
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   const [showModal, setShowModal] = useState(false);
@@ -30,6 +29,40 @@ const Projects = () => {
   const [showCustomerRequestsModal, setShowCustomerRequestsModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedProjectForNotes, setSelectedProjectForNotes] = useState<Project | null>(null);
+
+  // Helper functions for counting and checking NEW items
+  const getLastViewedKey = (projectId: string, type: 'meeting' | 'request') => {
+    return `lastViewed_${user?.id}_${projectId}_${type}`;
+  };
+
+  const getLastViewedTime = (projectId: string, type: 'meeting' | 'request'): number => {
+    const key = getLastViewedKey(projectId, type);
+    const stored = localStorage.getItem(key);
+    return stored ? parseInt(stored, 10) : 0;
+  };
+
+  const markAsViewed = (projectId: string, type: 'meeting' | 'request') => {
+    const key = getLastViewedKey(projectId, type);
+    localStorage.setItem(key, Date.now().toString());
+  };
+
+  const hasNewItems = (project: Project, type: 'meeting' | 'request'): boolean => {
+    const lastViewed = getLastViewedTime(project.id, type);
+
+    if (type === 'meeting') {
+      const notes = project.meetingNotes || [];
+      return notes.some(note => {
+        const noteTime = note.createdAt ? new Date(note.createdAt).getTime() : new Date(note.date).getTime();
+        return noteTime > lastViewed;
+      });
+    } else {
+      const requests = project.customerRequests || [];
+      return requests.some(req => {
+        const reqTime = req.createdAt ? new Date(req.createdAt).getTime() : 0;
+        return reqTime > lastViewed;
+      });
+    }
+  };
 
   // 컴포넌트 마운트 시 API에서 프로젝트 데이터 로드
   useEffect(() => {
@@ -121,11 +154,13 @@ const Projects = () => {
   const handleOpenMeetingNotes = (project: Project) => {
     setSelectedProjectForNotes(project);
     setShowMeetingNotesModal(true);
+    markAsViewed(project.id, 'meeting');
   };
 
   const handleOpenCustomerRequests = (project: Project) => {
     setSelectedProjectForNotes(project);
     setShowCustomerRequestsModal(true);
+    markAsViewed(project.id, 'request');
   };
 
   const handleOpenPassword = (project: Project) => {
@@ -172,7 +207,8 @@ const Projects = () => {
     const newNote = {
       id: Date.now().toString(),
       content,
-      date: meetingDate
+      date: meetingDate,
+      createdAt: new Date()
     };
 
     const updatedNotes = [...(selectedProjectForNotes.meetingNotes || []), newNote];
@@ -366,15 +402,6 @@ const Projects = () => {
       filtered = filtered.filter(p => p.status === activeTab);
     }
 
-    // 검색 필터
-    if (searchTerm) {
-      filtered = filtered.filter(project =>
-        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
     return filtered;
   };
 
@@ -440,15 +467,35 @@ const Projects = () => {
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => handleOpenMeetingNotes(project)}
-              className="px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="relative px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             >
               미팅내용
+              {(project.meetingNotes?.length || 0) > 0 && (
+                <span className="ml-1 text-[10px] text-gray-500">
+                  ({project.meetingNotes?.length || 0})
+                </span>
+              )}
+              {hasNewItems(project, 'meeting') && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-bold leading-none text-white bg-red-500 rounded-full">
+                  N
+                </span>
+              )}
             </button>
             <button
               onClick={() => handleOpenCustomerRequests(project)}
-              className="px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="relative px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             >
               고객요청
+              {(project.customerRequests?.length || 0) > 0 && (
+                <span className="ml-1 text-[10px] text-gray-500">
+                  ({project.customerRequests?.length || 0})
+                </span>
+              )}
+              {hasNewItems(project, 'request') && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-bold leading-none text-white bg-red-500 rounded-full">
+                  N
+                </span>
+              )}
             </button>
             <button
               onClick={() => handleOpenPassword(project)}
@@ -520,15 +567,7 @@ const Projects = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 gap-3">
-        <input
-          type="text"
-          placeholder="프로젝트 검색..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 focus:outline-none focus:border-gray-900 rounded"
-        />
-
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end space-y-3 sm:space-y-0 gap-3">
         <div className="hidden sm:flex border border-gray-300 overflow-hidden rounded">
           <button
             onClick={() => setViewType('grid')}
@@ -624,15 +663,35 @@ const Projects = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleOpenMeetingNotes(project)}
-                            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                            className="relative px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                           >
                             미팅내용
+                            {(project.meetingNotes?.length || 0) > 0 && (
+                              <span className="ml-1 text-[10px] text-gray-500">
+                                ({project.meetingNotes?.length || 0})
+                              </span>
+                            )}
+                            {hasNewItems(project, 'meeting') && (
+                              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-bold leading-none text-white bg-red-500 rounded-full">
+                                N
+                              </span>
+                            )}
                           </button>
                           <button
                             onClick={() => handleOpenCustomerRequests(project)}
-                            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                            className="relative px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                           >
                             고객요청
+                            {(project.customerRequests?.length || 0) > 0 && (
+                              <span className="ml-1 text-[10px] text-gray-500">
+                                ({project.customerRequests?.length || 0})
+                              </span>
+                            )}
+                            {hasNewItems(project, 'request') && (
+                              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-bold leading-none text-white bg-red-500 rounded-full">
+                                N
+                              </span>
+                            )}
                           </button>
                           <button
                             onClick={() => handleOpenPassword(project)}

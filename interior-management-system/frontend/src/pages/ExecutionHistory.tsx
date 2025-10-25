@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDataStore, type ExecutionRecord } from '../store/dataStore';
 import { useAuth } from '../contexts/AuthContext';
 import { Search, Trash2, ImageIcon, X, Upload } from 'lucide-react';
@@ -48,6 +48,7 @@ const ExecutionHistory = () => {
   const [mobileView, setMobileView] = useState<'form' | 'list' | 'image'>('form');
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [showProcessPicker, setShowProcessPicker] = useState(false);
+  const processButtonRef = useRef<HTMLButtonElement>(null);
   // 결제요청 레코드의 이미지를 저장하는 별도의 상태 (페이지 이동 시에도 유지)
   const [paymentRecordImages, setPaymentRecordImages] = useState<Record<string, string[]>>(() => {
     // localStorage에서 이미지 복원
@@ -158,21 +159,29 @@ const ExecutionHistory = () => {
   // 승인된 결제요청을 실행내역 형식으로 변환
   const paymentRecords = payments
     .filter(p => p.status === 'approved' || p.status === 'completed')
-    .map(payment => ({
-      id: payment.id,
-      type: 'payment' as const,
-      project: payment.project,
-      author: payment.requestedBy || '-', // 요청자를 작성자로 표시
-      date: payment.requestDate,
-      process: payment.process || '-',
-      itemName: payment.itemName || payment.purpose || '-',
-      materialCost: payment.amount,
-      laborCost: 0,
-      vatAmount: payment.amount * 0.1,
-      totalAmount: payment.amount * 1.1,
-      images: paymentRecordImages[payment.id] || [],
-      notes: payment.notes
-    }));
+    .map(payment => {
+      // 결제요청의 금액은 이미 부가세 포함 총액으로 간주
+      // 부가세 포함 금액에서 공급가액과 부가세를 역산
+      const totalWithVat = payment.amount;
+      const supplyPrice = Math.round(totalWithVat / 1.1); // 공급가액 = 총액 / 1.1
+      const vatAmount = totalWithVat - supplyPrice; // 부가세 = 총액 - 공급가액
+
+      return {
+        id: payment.id,
+        type: 'payment' as const,
+        project: payment.project,
+        author: payment.requestedBy || '-', // 요청자를 작성자로 표시
+        date: payment.requestDate,
+        process: payment.process || '-',
+        itemName: payment.itemName || payment.purpose || '-',
+        materialCost: supplyPrice, // 공급가액 (자재비)
+        laborCost: 0,
+        vatAmount: vatAmount, // 역산된 부가세
+        totalAmount: totalWithVat, // 원래 금액 그대로 (부가세 포함)
+        images: paymentRecordImages[payment.id] || [],
+        notes: payment.notes
+      };
+    });
 
   // 실행내역 레코드 변환
   const manualRecords = executionRecords.map(record => ({
@@ -506,9 +515,10 @@ const ExecutionHistory = () => {
             </div>
 
             {/* 공정 */}
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">공정</label>
               <button
+                ref={processButtonRef}
                 type="button"
                 onClick={() => setShowProcessPicker(true)}
                 className="w-full px-3 py-2 border rounded-lg text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -1049,52 +1059,110 @@ const ExecutionHistory = () => {
 
       {/* 공정 선택 모달 */}
       {showProcessPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg w-full max-w-md mx-4 max-h-[80vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-bold text-gray-900">공정 선택</h2>
-              <button
-                onClick={() => setShowProcessPicker(false)}
-                className="p-1.5 hover:bg-gray-100 rounded-full"
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
+        <>
+          {/* 모바일: 중앙 모달 */}
+          <div className="lg:hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-lg w-full max-w-md mx-4 max-h-[80vh] overflow-hidden">
+              <div className="flex items-center justify-between p-3 border-b">
+                <h2 className="text-base font-bold text-gray-900">공정 선택</h2>
+                <button
+                  onClick={() => setShowProcessPicker(false)}
+                  className="p-1 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="h-4 w-4 text-gray-500" />
+                </button>
+              </div>
 
-            <div className="p-4 overflow-y-auto max-h-[calc(80vh-120px)]">
-              {/* 빈 값 선택 옵션 */}
-              <button
-                onClick={() => {
-                  setFormData({ ...formData, process: '' });
-                  setShowProcessPicker(false);
-                }}
-                className="w-full mb-3 p-3 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 text-gray-500"
-              >
-                선택 안함
-              </button>
+              <div className="p-3 overflow-y-auto max-h-[calc(80vh-100px)]">
+                {/* 빈 값 선택 옵션 */}
+                <button
+                  onClick={() => {
+                    setFormData({ ...formData, process: '' });
+                    setShowProcessPicker(false);
+                  }}
+                  className="w-full mb-2 p-2 text-sm text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 text-gray-500"
+                >
+                  선택 안함
+                </button>
 
-              {/* 공정 목록 그리드 */}
-              <div className="grid grid-cols-2 gap-2">
-                {PROCESS_LIST.map((process) => (
-                  <button
-                    key={process}
-                    onClick={() => {
-                      setFormData({ ...formData, process });
-                      setShowProcessPicker(false);
-                    }}
-                    className={`p-3 text-center border rounded-lg transition-all ${
-                      formData.process === process
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                    }`}
-                  >
-                    {process}
-                  </button>
-                ))}
+                {/* 공정 목록 그리드 */}
+                <div className="grid grid-cols-2 gap-2">
+                  {PROCESS_LIST.map((process) => (
+                    <button
+                      key={process}
+                      onClick={() => {
+                        setFormData({ ...formData, process });
+                        setShowProcessPicker(false);
+                      }}
+                      className={`p-2 text-sm text-center border rounded-lg transition-all ${
+                        formData.process === process
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      {process}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+
+          {/* 데스크톱: 버튼 근처 팝업 */}
+          <div className="hidden lg:block fixed inset-0 z-40" onClick={() => setShowProcessPicker(false)}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bg-white rounded-lg shadow-xl border border-gray-200"
+              style={{
+                top: processButtonRef.current ? `${processButtonRef.current.getBoundingClientRect().bottom + window.scrollY + 4}px` : '50%',
+                left: processButtonRef.current ? `${processButtonRef.current.getBoundingClientRect().left + window.scrollX}px` : '50%',
+              }}
+            >
+              <div className="flex items-center justify-between p-2 border-b">
+                <h2 className="text-sm font-bold text-gray-900">공정 선택</h2>
+                <button
+                  onClick={() => setShowProcessPicker(false)}
+                  className="p-1 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="h-3 w-3 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-2">
+                {/* 빈 값 선택 옵션 */}
+                <button
+                  onClick={() => {
+                    setFormData({ ...formData, process: '' });
+                    setShowProcessPicker(false);
+                  }}
+                  className="w-full mb-2 p-1.5 text-xs text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 text-gray-500"
+                >
+                  선택 안함
+                </button>
+
+                {/* 공정 목록 그리드 - 4열로 확대하여 모든 공정이 보이도록 */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {PROCESS_LIST.map((process) => (
+                    <button
+                      key={process}
+                      onClick={() => {
+                        setFormData({ ...formData, process });
+                        setShowProcessPicker(false);
+                      }}
+                      className={`p-1.5 text-xs text-center border rounded-lg transition-all whitespace-nowrap ${
+                        formData.process === process
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      {process}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* 이미지 팝업 모달 */}

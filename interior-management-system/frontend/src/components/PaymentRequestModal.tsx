@@ -181,18 +181,6 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
     setValue('accountHolder', name);
 
-    // 항목명 자동 입력: "팀" 또는 "반장"이 포함된 경우 "인건비"로 설정
-    const fullName = contractor.name.toLowerCase();
-    const companyName = (contractor.companyName || '').toLowerCase();
-    const processName = contractor.process.toLowerCase();
-
-    if (fullName.includes('팀') ||
-        fullName.includes('반장') ||
-        companyName.includes('팀') ||
-        processName.includes('공사') && !processName.includes('자재')) {
-      setValue('itemName', '인건비');
-    }
-
     // 계좌번호가 있는 경우 계좌번호에서 은행명과 계좌번호 분리
     if (contractor.accountNumber && contractor.accountNumber.trim() !== '') {
       const bankNames = [
@@ -498,14 +486,15 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               자재비 (원)
             </label>
             <input
-              {...register('materialAmount')}
               type="number"
               className="input"
               placeholder="0"
+              value={materialAmount || ''}
               onChange={(e) => {
-                const value = parseInt(e.target.value) || 0;
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
                 console.log('Material amount input:', e.target.value, '→', value);
                 setMaterialAmount(value);
+                setValue('materialAmount', value);
               }}
             />
           </div>
@@ -516,21 +505,18 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
               인건비 (원)
             </label>
             <input
-              {...register('laborAmount')}
               type="number"
               className="input"
               placeholder="0"
+              value={laborAmount || ''}
               onChange={(e) => {
-                const value = parseInt(e.target.value) || 0;
-                console.log('Labor amount input:', e.target.value, '→', value, 'applyTaxDeduction:', applyTaxDeduction);
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                console.log('Labor amount input:', e.target.value, '→', value);
                 setOriginalLaborAmount(value);
-                if (applyTaxDeduction) {
-                  const deductedAmount = Math.round(value * 0.967);
-                  setLaborAmount(deductedAmount);
-                  setValue('laborAmount', deductedAmount);
-                } else {
-                  setLaborAmount(value);
-                }
+                // 항상 입력한 금액 그대로 사용
+                // 3.3% 공제는 체크박스로만 적용하고, 입력 중에는 영향 없음
+                setLaborAmount(value);
+                setValue('laborAmount', value);
               }}
             />
 

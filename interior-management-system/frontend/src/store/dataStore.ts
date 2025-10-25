@@ -12,6 +12,7 @@ export interface MeetingNote {
   id: string;
   content: string;
   date: Date;
+  createdAt?: Date;
 }
 
 export interface CustomerRequest {
@@ -62,6 +63,11 @@ export interface Payment {
   process?: string; // 공정
   itemName?: string; // 항목명
   amount: number;
+  materialAmount?: number;
+  laborAmount?: number;
+  originalLaborAmount?: number;
+  applyTaxDeduction?: boolean;
+  includesVAT?: boolean;
   category: 'material' | 'labor' | 'equipment' | 'transport' | 'other';
   status: 'pending' | 'reviewing' | 'approved' | 'on-hold' | 'rejected' | 'completed';
   urgency: 'normal' | 'urgent' | 'emergency';
@@ -99,6 +105,12 @@ export interface ConstructionPaymentRecord {
   vatType: 'percentage' | 'amount'; // 부가세 입력 방식
   vatPercentage: number; // 부가세 발행 비율 (0-100%)
   vatAmount: number; // 부가세 직접 입력 금액
+  expectedPaymentDates?: {
+    contract?: Date; // 계약금
+    start?: Date; // 착수금
+    middle?: Date; // 중도금
+    final?: Date; // 잔금
+  };
   payments: {
     type: string; // 쉼표로 구분된 타입들 ('계약금', '계약금, 착수금' 등)
     amount: number;
@@ -305,8 +317,13 @@ export const useDataStore = create<DataStore>()(
         project: p.project_name,
         purpose: p.description,
         process: p.vendor_name,
-        itemName: '',
+        itemName: p.item_name || '',
         amount: p.amount,
+        materialAmount: p.material_amount || 0,
+        laborAmount: p.labor_amount || 0,
+        originalLaborAmount: p.original_labor_amount || 0,
+        applyTaxDeduction: p.apply_tax_deduction === 1,
+        includesVAT: p.includes_vat === 1,
         category: p.request_type as Payment['category'],
         status: p.status,
         urgency: 'normal' as Payment['urgency'],
@@ -314,12 +331,12 @@ export const useDataStore = create<DataStore>()(
         requestDate: new Date(p.created_at),
         approvalDate: p.approved_at ? new Date(p.approved_at) : undefined,
         bankInfo: {
-          accountHolder: p.account_holder,
-          bankName: p.bank_name,
-          accountNumber: p.account_number
+          accountHolder: p.account_holder || '',
+          bankName: p.bank_name || '',
+          accountNumber: p.account_number || ''
         },
         attachments: [],
-        notes: p.notes
+        notes: p.notes || ''
       }));
       set({ payments });
     } catch (error) {
@@ -330,7 +347,7 @@ export const useDataStore = create<DataStore>()(
 
   addPaymentToAPI: async (payment: Payment) => {
     try {
-      await paymentService.createPayment({
+      const paymentData = {
         projectId: payment.project,
         purpose: payment.purpose,
         process: payment.process,
@@ -341,8 +358,15 @@ export const useDataStore = create<DataStore>()(
         requestedBy: payment.requestedBy,
         bankInfo: payment.bankInfo,
         notes: payment.notes,
-        attachments: []
-      });
+        attachments: [],
+        materialAmount: (payment as any).materialAmount || 0,
+        laborAmount: (payment as any).laborAmount || 0,
+        originalLaborAmount: (payment as any).originalLaborAmount || 0,
+        applyTaxDeduction: (payment as any).applyTaxDeduction || false,
+        includesVAT: (payment as any).includesVAT || false
+      };
+      console.log('[addPaymentToAPI] Sending payment data:', paymentData);
+      await paymentService.createPayment(paymentData);
 
       // Reload all payments from API to get the updated list
       const apiPayments = await paymentService.getAllPayments();
@@ -351,8 +375,13 @@ export const useDataStore = create<DataStore>()(
         project: p.project_name,
         purpose: p.description,
         process: p.vendor_name,
-        itemName: '',
+        itemName: p.item_name || '',
         amount: p.amount,
+        materialAmount: p.material_amount || 0,
+        laborAmount: p.labor_amount || 0,
+        originalLaborAmount: p.original_labor_amount || 0,
+        applyTaxDeduction: p.apply_tax_deduction === 1,
+        includesVAT: p.includes_vat === 1,
         category: p.request_type as Payment['category'],
         status: p.status,
         urgency: 'normal' as Payment['urgency'],
@@ -360,12 +389,12 @@ export const useDataStore = create<DataStore>()(
         requestDate: new Date(p.created_at),
         approvalDate: p.approved_at ? new Date(p.approved_at) : undefined,
         bankInfo: {
-          accountHolder: p.account_holder,
-          bankName: p.bank_name,
-          accountNumber: p.account_number
+          accountHolder: p.account_holder || '',
+          bankName: p.bank_name || '',
+          accountNumber: p.account_number || ''
         },
         attachments: [],
-        notes: p.notes
+        notes: p.notes || ''
       }));
       set({ payments });
     } catch (error) {
@@ -395,8 +424,13 @@ export const useDataStore = create<DataStore>()(
         project: p.project_name,
         purpose: p.description,
         process: p.vendor_name,
-        itemName: '',
+        itemName: p.item_name || '',
         amount: p.amount,
+        materialAmount: p.material_amount || 0,
+        laborAmount: p.labor_amount || 0,
+        originalLaborAmount: p.original_labor_amount || 0,
+        applyTaxDeduction: p.apply_tax_deduction === 1,
+        includesVAT: p.includes_vat === 1,
         category: p.request_type as Payment['category'],
         status: p.status,
         urgency: 'normal' as Payment['urgency'],
@@ -404,12 +438,12 @@ export const useDataStore = create<DataStore>()(
         requestDate: new Date(p.created_at),
         approvalDate: p.approved_at ? new Date(p.approved_at) : undefined,
         bankInfo: {
-          accountHolder: p.account_holder,
-          bankName: p.bank_name,
-          accountNumber: p.account_number
+          accountHolder: p.account_holder || '',
+          bankName: p.bank_name || '',
+          accountNumber: p.account_number || ''
         },
         attachments: [],
-        notes: p.notes
+        notes: p.notes || ''
       }));
       set({ payments });
     } catch (error) {
@@ -489,6 +523,7 @@ export const useDataStore = create<DataStore>()(
 
   updateScheduleInAPI: async (id: string, updatedSchedule: Partial<Schedule>) => {
     try {
+      console.log('📤 updateScheduleInAPI called with:', { id, updatedSchedule });
       const apiSchedule = await scheduleService.updateSchedule(id, {
         project: updatedSchedule.project,
         title: updatedSchedule.title,
@@ -500,6 +535,7 @@ export const useDataStore = create<DataStore>()(
         assignedTo: updatedSchedule.attendees || [],
         time: updatedSchedule.time
       });
+      console.log('✅ updateScheduleInAPI response:', apiSchedule);
 
       const schedule: Schedule = {
         id: apiSchedule._id,
@@ -517,8 +553,13 @@ export const useDataStore = create<DataStore>()(
       set((state) => ({
         schedules: state.schedules.map((s) => (s.id === id ? schedule : s))
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update schedule in API:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw error;
     }
   },
@@ -789,28 +830,42 @@ export const useDataStore = create<DataStore>()(
   loadConstructionPaymentsFromAPI: async () => {
     try {
       const apiConstructionPayments = await constructionPaymentService.getAllConstructionPayments();
-      const constructionPayments: ConstructionPaymentRecord[] = apiConstructionPayments.map((cp: any) => ({
-        id: cp._id,
-        project: cp.project,
-        client: cp.client,
-        totalAmount: cp.totalAmount,
-        vatType: cp.vatType,
-        vatPercentage: cp.vatPercentage,
-        vatAmount: cp.vatAmount,
-        payments: cp.payments?.map((p: any) => {
-          // Safe date conversion - fallback to current date if invalid
-          const dateValue = p.date ? new Date(p.date) : new Date();
-          const validDate = isNaN(dateValue.getTime()) ? new Date() : dateValue;
-
-          return {
-            type: p.type || p.types?.[0] || '계약금',
-            amount: p.amount,
-            date: validDate,
-            method: p.method,
-            notes: p.notes
+      const constructionPayments: ConstructionPaymentRecord[] = apiConstructionPayments.map((cp: any) => {
+        // Convert expectedPaymentDates from strings to Date objects
+        let expectedPaymentDates = undefined;
+        if (cp.expectedPaymentDates) {
+          expectedPaymentDates = {
+            contract: cp.expectedPaymentDates.contract ? new Date(cp.expectedPaymentDates.contract) : undefined,
+            start: cp.expectedPaymentDates.start ? new Date(cp.expectedPaymentDates.start) : undefined,
+            middle: cp.expectedPaymentDates.middle ? new Date(cp.expectedPaymentDates.middle) : undefined,
+            final: cp.expectedPaymentDates.final ? new Date(cp.expectedPaymentDates.final) : undefined,
           };
-        }) || []
-      }));
+        }
+
+        return {
+          id: cp._id,
+          project: cp.project,
+          client: cp.client,
+          totalAmount: cp.totalAmount,
+          vatType: cp.vatType,
+          vatPercentage: cp.vatPercentage,
+          vatAmount: cp.vatAmount,
+          expectedPaymentDates,
+          payments: cp.payments?.map((p: any) => {
+            // Safe date conversion - fallback to current date if invalid
+            const dateValue = p.date ? new Date(p.date) : new Date();
+            const validDate = isNaN(dateValue.getTime()) ? new Date() : dateValue;
+
+            return {
+              type: p.type || p.types?.[0] || '계약금',
+              amount: p.amount,
+              date: validDate,
+              method: p.method,
+              notes: p.notes
+            };
+          }) || []
+        };
+      });
       set({ constructionPayments });
     } catch (error) {
       console.error('Failed to load construction payments from API:', error);
@@ -856,6 +911,17 @@ export const useDataStore = create<DataStore>()(
     try {
       const apiPayment = await constructionPaymentService.updateConstructionPayment(id, updatedPayment as any);
 
+      // Convert expectedPaymentDates from strings to Date objects
+      let expectedPaymentDates = undefined;
+      if (apiPayment.expectedPaymentDates) {
+        expectedPaymentDates = {
+          contract: apiPayment.expectedPaymentDates.contract ? new Date(apiPayment.expectedPaymentDates.contract) : undefined,
+          start: apiPayment.expectedPaymentDates.start ? new Date(apiPayment.expectedPaymentDates.start) : undefined,
+          middle: apiPayment.expectedPaymentDates.middle ? new Date(apiPayment.expectedPaymentDates.middle) : undefined,
+          final: apiPayment.expectedPaymentDates.final ? new Date(apiPayment.expectedPaymentDates.final) : undefined,
+        };
+      }
+
       const payment: ConstructionPaymentRecord = {
         id: apiPayment._id,
         project: apiPayment.project,
@@ -864,6 +930,7 @@ export const useDataStore = create<DataStore>()(
         vatType: apiPayment.vatType,
         vatPercentage: apiPayment.vatPercentage,
         vatAmount: apiPayment.vatAmount,
+        expectedPaymentDates,
         payments: apiPayment.payments?.map((p: any) => ({
           type: p.type || p.types?.[0] || '계약금',
           amount: p.amount,

@@ -14,6 +14,12 @@ export interface ConstructionPaymentData {
     method: string;
     notes?: string;
   }>;
+  expectedPaymentDates?: {
+    contract?: Date;
+    start?: Date;
+    middle?: Date;
+    final?: Date;
+  };
 }
 
 export interface ConstructionPaymentResponse {
@@ -31,6 +37,12 @@ export interface ConstructionPaymentResponse {
     method: string;
     notes?: string;
   }>;
+  expectedPaymentDates?: {
+    contract?: string;
+    start?: string;
+    middle?: string;
+    final?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

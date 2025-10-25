@@ -35,12 +35,25 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
 
   const selectedProjectId = watch('projectId');
 
+  // 모달이 처음 마운트될 때 한 번만 초기화
+  useEffect(() => {
+    // 초기 상태 설정
+    setHasTime(false);
+    setTimePeriod('오전');
+    setTimeHour(9);
+    setTimeMinute(0);
+    setSelectedMembers([]);
+    setCustomProjectName('');
+    setCustomMember('');
+  }, []); // Empty dependency array - only run once on mount
+
   // 모달이 열릴 때 초기 설정
   useEffect(() => {
     console.log('🟢 ScheduleModal useEffect triggered:', {
       hasEvent: !!event,
       eventId: event?.id,
-      hasSlotInfo: !!slotInfo
+      hasSlotInfo: !!slotInfo,
+      hasMergedEvents: !!(event?.mergedEventIds)
     });
 
     // event가 있으면 기존 일정 수정 모드
@@ -54,8 +67,13 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
         time: event.time
       });
 
-      // 폼 필드 설정
-      setValue('title', event.title, { shouldValidate: false, shouldDirty: false });
+      // 폼 필드 설정 - originalTitle이 있으면 사용 (시간 텍스트가 제거된 원본 제목)
+      const titleToUse = event.originalTitle || event.title;
+      // 혹시 title에 시간 텍스트가 포함되어 있으면 제거
+      const timePattern = / - (오전|오후) \d{1,2}시$/;
+      const cleanTitle = titleToUse.replace(timePattern, '');
+
+      setValue('title', cleanTitle, { shouldValidate: false, shouldDirty: false });
       setValue('date', format(event.start, 'yyyy-MM-dd'), { shouldValidate: false, shouldDirty: false });
       setValue('description', event.description || '', { shouldValidate: false, shouldDirty: false });
 
@@ -133,10 +151,11 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
 
       setSelectedMembers([]);
       setCustomProjectName('');
-      setHasTime(false);
-      setTimePeriod('오전');
-      setTimeHour(9);
-      setTimeMinute(0);
+      // DON'T reset time states here - let user control them
+      // setHasTime(false);
+      // setTimePeriod('오전');
+      // setTimeHour(9);
+      // setTimeMinute(0);
 
       // Set default project if provided
       if (defaultProjectName) {
@@ -147,7 +166,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event?.id, slotInfo?.start]); // event.id와 slotInfo.start가 변경될 때만 재실행
+  }, [event?.id]); // Only re-run when event.id changes, NOT on slotInfo changes
 
   // 프로젝트 선택 시 자동으로 해당 프로젝트의 팀원을 담당자로 설정
   useEffect(() => {
@@ -189,7 +208,10 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     console.log('🔴 Form onSubmit called with data:', data);
     console.log('🔴 customProjectName:', customProjectName);
     console.log('🔴 selectedMembers:', selectedMembers);
+    console.log('🔴 hasTime state:', hasTime);
+    console.log('🔴 timePeriod:', timePeriod, 'timeHour:', timeHour, 'timeMinute:', timeMinute);
     console.log('🔴 Available projects:', projects.map(p => ({ id: p.id, name: p.name, idType: typeof p.id })));
+    console.log('🔴 Merged event IDs:', event?.mergedEventIds);
 
     let projectName = '';
     let projectId = '';
@@ -226,8 +248,12 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
         hours24 = 0;
       }
       timeString = `${hours24.toString().padStart(2, '0')}:${timeMinute.toString().padStart(2, '0')}`;
+      console.log('🔴 Time calculated:', timeString);
+    } else {
+      console.log('🔴 No time set (hasTime is false)');
     }
 
+    // 병합된 이벤트나 단일 이벤트 처리
     const newEvent = {
       ...event,
       title: data.title,
@@ -242,7 +268,8 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       location: '',
       description: data.description || '',
       time: timeString,
-      color: '#6B7280'
+      color: '#6B7280',
+      mergedEventIds: event?.mergedEventIds // 병합된 ID들 유지
     };
 
     console.log('🔴 Calling onSave with newEvent:', newEvent);
@@ -501,7 +528,11 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
               {event && (
                 <button
                   type="button"
-                  onClick={() => onDelete(event.id)}
+                  onClick={() => {
+                    if (window.confirm('이 일정을 삭제하시겠습니까?')) {
+                      onDelete(event.id);
+                    }
+                  }}
                   className="btn btn-outline text-red-600 hover:bg-red-50 flex items-center w-full sm:w-auto justify-center text-sm md:text-base"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />

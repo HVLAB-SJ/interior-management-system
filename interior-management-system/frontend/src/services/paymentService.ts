@@ -34,6 +34,12 @@ export interface PaymentResponse {
   account_holder: string;
   bank_name: string;
   account_number: string;
+  item_name?: string;
+  material_amount?: number;
+  labor_amount?: number;
+  original_labor_amount?: number;
+  apply_tax_deduction?: number;
+  includes_vat?: number;
   notes: string;
   status: 'pending' | 'reviewing' | 'approved' | 'on-hold' | 'rejected' | 'completed';
   created_at: string;
@@ -58,28 +64,42 @@ const paymentService = {
   // Create payment
   createPayment: async (data: PaymentData): Promise<PaymentResponse> => {
     // Convert to backend format (camelCase -> snake_case)
-    const response = await api.post('/payments', {
+    const requestData = {
       project_id: data.projectId,
       request_type: data.category,
       vendor_name: data.process || '',
-      description: data.purpose,
+      description: data.purpose || '',  // Ensure empty string instead of undefined
       amount: data.amount,
       account_holder: data.bankInfo?.accountHolder || '',
       bank_name: data.bankInfo?.bankName || '',
       account_number: data.bankInfo?.accountNumber || '',
-      notes: data.notes || ''
-    });
+      notes: data.notes || '',
+      itemName: (data as any).itemName || '',
+      materialAmount: (data as any).materialAmount || 0,
+      laborAmount: (data as any).laborAmount || 0,
+      originalLaborAmount: (data as any).originalLaborAmount || 0,
+      applyTaxDeduction: (data as any).applyTaxDeduction || false,
+      includesVAT: (data as any).includesVAT || false
+    };
+    console.log('[paymentService.createPayment] Sending to backend:', requestData);
+    const response = await api.post('/payments', requestData);
     return response.data;
   },
 
   // Update payment
-  updatePayment: async (id: string, data: Partial<PaymentData>): Promise<PaymentResponse> => {
+  updatePayment: async (id: string, data: Partial<any>): Promise<PaymentResponse> => {
     // Convert to backend format (camelCase -> snake_case)
     const backendData: any = {};
     if (data.purpose !== undefined) backendData.description = data.purpose;
     if (data.amount !== undefined) backendData.amount = data.amount;
     if (data.process !== undefined) backendData.vendor_name = data.process;
     if (data.category !== undefined) backendData.request_type = data.category;
+    if (data.itemName !== undefined) backendData.itemName = data.itemName;
+    if (data.materialAmount !== undefined) backendData.materialAmount = data.materialAmount;
+    if (data.laborAmount !== undefined) backendData.laborAmount = data.laborAmount;
+    if (data.originalLaborAmount !== undefined) backendData.originalLaborAmount = data.originalLaborAmount;
+    if (data.applyTaxDeduction !== undefined) backendData.applyTaxDeduction = data.applyTaxDeduction;
+    if (data.includesVAT !== undefined) backendData.includesVAT = data.includesVAT;
     if (data.notes !== undefined) backendData.notes = data.notes;
     if (data.bankInfo !== undefined) {
       if (data.bankInfo.accountHolder) backendData.account_holder = data.bankInfo.accountHolder;

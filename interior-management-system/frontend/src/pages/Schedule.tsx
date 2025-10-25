@@ -41,15 +41,17 @@ interface ScheduleEvent {
   end: Date;
   projectId: string;
   projectName: string;
-  type: 'construction' | 'material' | 'inspection' | 'meeting' | 'other' | 'as_visit';
+  type: 'construction' | 'material' | 'inspection' | 'meeting' | 'other' | 'as_visit' | 'expected_payment';
   phase: string;
   assignedTo: string[];
   priority: 'low' | 'medium' | 'high';
   allDay: boolean;
   color?: string;
   isASVisit?: boolean;
+  isExpectedPayment?: boolean;
   time?: string;
   description?: string;  // 설명 필드 추가
+  mergedEventIds?: string[]; // 병합된 이벤트 ID들
 }
 
 // 프로젝트별 색상 할당 (무채색)
@@ -360,7 +362,11 @@ const Schedule = () => {
     updateScheduleInAPI,
     deleteScheduleFromAPI,
     projects,
-    asRequests
+    asRequests,
+    updateASRequestInAPI,
+    constructionPayments,
+    payments,
+    updateConstructionPaymentInAPI
   } = useDataStore();
   const { user } = useAuth();
 
@@ -446,8 +452,294 @@ const Schedule = () => {
       };
     });
 
+  // 수금 일정을 캘린더 이벤트로 변환 (manager만 볼 수 있음)
+  const expectedPaymentEvents: ScheduleEvent[] = user?.role === 'manager'
+    ? constructionPayments.flatMap(cp => {
+        const project = projects.find(p => p.name === cp.project);
+        if (!project) {
+          // 프로젝트가 없으면 프로젝트 정보 없이도 표시
+          const events: ScheduleEvent[] = [];
+          const totalContractAmount = cp.totalAmount + (
+            cp.vatType === 'percentage'
+              ? cp.totalAmount * (cp.vatPercentage / 100)
+              : cp.vatAmount
+          );
+
+          // 이미 수령한 타입들
+          const receivedTypes = new Set(
+            cp.payments.flatMap(p => p.type?.split(', ').map(t => t.trim()) || [])
+          );
+
+          // 계약금
+          if (!receivedTypes.has('계약금') && cp.expectedPaymentDates?.contract) {
+            events.push({
+              id: `payment-${cp.id}-contract`,
+              title: `[수금일정] ${cp.project} - 계약금`,
+              originalTitle: `[수금일정] ${cp.project} - 계약금`,
+              start: new Date(cp.expectedPaymentDates.contract),
+              end: new Date(cp.expectedPaymentDates.contract),
+              projectId: '',
+              projectName: cp.project,
+              type: 'expected_payment' as const,
+              phase: '',
+              assignedTo: [],
+              priority: 'medium' as const,
+              allDay: true,
+              color: '#DBEAFE',
+              isExpectedPayment: true,
+              description: `계약금 (10%): ${Math.round(totalContractAmount * 0.1).toLocaleString()}원`
+            });
+          }
+
+          // 착수금
+          if (!receivedTypes.has('착수금') && cp.expectedPaymentDates?.start) {
+            events.push({
+              id: `payment-${cp.id}-start`,
+              title: `[수금일정] ${cp.project} - 착수금`,
+              originalTitle: `[수금일정] ${cp.project} - 착수금`,
+              start: new Date(cp.expectedPaymentDates.start),
+              end: new Date(cp.expectedPaymentDates.start),
+              projectId: '',
+              projectName: cp.project,
+              type: 'expected_payment' as const,
+              phase: '',
+              assignedTo: [],
+              priority: 'medium' as const,
+              allDay: true,
+              color: '#DBEAFE',
+              isExpectedPayment: true,
+              description: `착수금 (40%): ${Math.round(totalContractAmount * 0.4).toLocaleString()}원`
+            });
+          }
+
+          // 중도금
+          if (!receivedTypes.has('중도금') && cp.expectedPaymentDates?.middle) {
+            events.push({
+              id: `payment-${cp.id}-middle`,
+              title: `[수금일정] ${cp.project} - 중도금`,
+              originalTitle: `[수금일정] ${cp.project} - 중도금`,
+              start: new Date(cp.expectedPaymentDates.middle),
+              end: new Date(cp.expectedPaymentDates.middle),
+              projectId: '',
+              projectName: cp.project,
+              type: 'expected_payment' as const,
+              phase: '',
+              assignedTo: [],
+              priority: 'medium' as const,
+              allDay: true,
+              color: '#DBEAFE',
+              isExpectedPayment: true,
+              description: `중도금 (40%): ${Math.round(totalContractAmount * 0.4).toLocaleString()}원`
+            });
+          }
+
+          // 잔금
+          if (!receivedTypes.has('잔금') && cp.expectedPaymentDates?.final) {
+            events.push({
+              id: `payment-${cp.id}-final`,
+              title: `[수금일정] ${cp.project} - 잔금`,
+              originalTitle: `[수금일정] ${cp.project} - 잔금`,
+              start: new Date(cp.expectedPaymentDates.final),
+              end: new Date(cp.expectedPaymentDates.final),
+              projectId: '',
+              projectName: cp.project,
+              type: 'expected_payment' as const,
+              phase: '',
+              assignedTo: [],
+              priority: 'medium' as const,
+              allDay: true,
+              color: '#DBEAFE',
+              isExpectedPayment: true,
+              description: `잔금 (10%): ${Math.round(totalContractAmount * 0.1).toLocaleString()}원`
+            });
+          }
+
+          return events;
+        }
+
+        if (!project.startDate || !project.endDate) {
+          return [];
+        }
+
+        // 계약 금액 + 부가세
+        const totalContractAmount = cp.totalAmount + (
+          cp.vatType === 'percentage'
+            ? cp.totalAmount * (cp.vatPercentage / 100)
+            : cp.vatAmount
+        );
+
+        // 이미 수령한 타입들
+        const receivedTypes = new Set(
+          cp.payments.flatMap(p => p.type?.split(', ').map(t => t.trim()) || [])
+        );
+
+        const events: ScheduleEvent[] = [];
+
+        // 계약금
+        if (!receivedTypes.has('계약금') && cp.expectedPaymentDates?.contract) {
+          events.push({
+            id: `payment-${cp.id}-contract`,
+            title: `[수금일정] ${cp.project} - 계약금`,
+            originalTitle: `[수금일정] ${cp.project} - 계약금`,
+            start: new Date(cp.expectedPaymentDates.contract),
+            end: new Date(cp.expectedPaymentDates.contract),
+            projectId: project.id || '',
+            projectName: cp.project,
+            type: 'expected_payment' as const,
+            phase: '',
+            assignedTo: [],
+            priority: 'medium' as const,
+            allDay: true,
+            color: '#DBEAFE',
+            isExpectedPayment: true,
+            description: `계약금 (10%): ${Math.round(totalContractAmount * 0.1).toLocaleString()}원`
+          });
+        }
+
+        // 착수금
+        if (!receivedTypes.has('착수금') && cp.expectedPaymentDates?.start) {
+          events.push({
+            id: `payment-${cp.id}-start`,
+            title: `[수금일정] ${cp.project} - 착수금`,
+            originalTitle: `[수금일정] ${cp.project} - 착수금`,
+            start: new Date(cp.expectedPaymentDates.start),
+            end: new Date(cp.expectedPaymentDates.start),
+            projectId: project.id || '',
+            projectName: cp.project,
+            type: 'expected_payment' as const,
+            phase: '',
+            assignedTo: [],
+            priority: 'medium' as const,
+            allDay: true,
+            color: '#DBEAFE',
+            isExpectedPayment: true,
+            description: `착수금 (40%): ${Math.round(totalContractAmount * 0.4).toLocaleString()}원`
+          });
+        }
+
+        // 중도금
+        if (!receivedTypes.has('중도금') && cp.expectedPaymentDates?.middle) {
+          events.push({
+            id: `payment-${cp.id}-middle`,
+            title: `[수금일정] ${cp.project} - 중도금`,
+            originalTitle: `[수금일정] ${cp.project} - 중도금`,
+            start: new Date(cp.expectedPaymentDates.middle),
+            end: new Date(cp.expectedPaymentDates.middle),
+            projectId: project.id || '',
+            projectName: cp.project,
+            type: 'expected_payment' as const,
+            phase: '',
+            assignedTo: [],
+            priority: 'medium' as const,
+            allDay: true,
+            color: '#DBEAFE',
+            isExpectedPayment: true,
+            description: `중도금 (40%): ${Math.round(totalContractAmount * 0.4).toLocaleString()}원`
+          });
+        }
+
+        // 잔금
+        if (!receivedTypes.has('잔금') && cp.expectedPaymentDates?.final) {
+          events.push({
+            id: `payment-${cp.id}-final`,
+            title: `[수금일정] ${cp.project} - 잔금`,
+            originalTitle: `[수금일정] ${cp.project} - 잔금`,
+            start: new Date(cp.expectedPaymentDates.final),
+            end: new Date(cp.expectedPaymentDates.final),
+            projectId: project.id || '',
+            projectName: cp.project,
+            type: 'expected_payment' as const,
+            phase: '',
+            assignedTo: [],
+            priority: 'medium' as const,
+            allDay: true,
+            color: '#DBEAFE',
+            isExpectedPayment: true,
+            description: `잔금 (10%): ${Math.round(totalContractAmount * 0.1).toLocaleString()}원`
+          });
+        }
+
+        return events;
+      })
+    : [];
+
   // 모든 이벤트 합치기
-  const events = [...scheduleEvents, ...asVisitEvents];
+  const allEvents = [...scheduleEvents, ...asVisitEvents, ...expectedPaymentEvents];
+
+  // 같은 날, 같은 프로젝트의 일정을 그룹화하는 함수
+  const groupEventsByProjectAndDate = (events: ScheduleEvent[]): ScheduleEvent[] => {
+    const grouped = new Map<string, ScheduleEvent[]>();
+
+    events.forEach(event => {
+      // AS 방문과 수금 일정은 그룹화하지 않음
+      if (event.isASVisit || event.isExpectedPayment) {
+        const key = `single_${event.id}`;
+        grouped.set(key, [event]);
+      } else {
+        // 일반 일정은 날짜, 프로젝트, 담당자로 그룹화
+        const dateKey = event.start.toISOString().split('T')[0];
+        // 담당자 배열을 정렬해서 문자열로 변환 (순서 무관하게 같은 사람들이면 같은 키가 되도록)
+        const assigneesKey = [...event.assignedTo].sort().join(',');
+        const groupKey = `${dateKey}_${event.projectName}_${assigneesKey}`;
+
+        if (!grouped.has(groupKey)) {
+          grouped.set(groupKey, []);
+        }
+        grouped.get(groupKey)!.push(event);
+      }
+    });
+
+    // 그룹화된 이벤트를 최종 이벤트로 변환
+    const finalEvents: ScheduleEvent[] = [];
+
+    grouped.forEach((groupEvents, key) => {
+      if (groupEvents.length === 1) {
+        // 단일 이벤트는 그대로 추가
+        finalEvents.push(groupEvents[0]);
+      } else {
+        // 여러 이벤트를 하나로 병합
+        const firstEvent = groupEvents[0];
+        const titles = groupEvents.map(e => e.originalTitle || e.title);
+        const uniqueTitles = [...new Set(titles)]; // 중복 제거
+
+        // 시간 정보가 있는 이벤트들의 시간 수집
+        const times = groupEvents
+          .filter(e => e.time && e.time !== '-')
+          .map(e => e.time);
+        const timeText = times.length > 0 ? ` - ${times.join(', ')}` : '';
+
+        // 모든 공정명을 표시 (프로젝트명 제거)
+        const processNames = groupEvents.map(event => {
+          const title = event.originalTitle || event.title;
+          // 이미 프로젝트명이 포함된 경우 제거
+          if (title.startsWith(firstEvent.projectName + ' - ')) {
+            return title.substring(firstEvent.projectName.length + 3); // "프로젝트명 - " 부분 제거
+          }
+          return title;
+        });
+
+        // 중복 제거
+        const uniqueProcessNames = [...new Set(processNames)];
+
+        const mergedEvent: ScheduleEvent = {
+          ...firstEvent,
+          id: groupEvents[0].id, // 첫 번째 이벤트의 ID 사용
+          title: `${uniqueProcessNames.join(', ')}${timeText}`,
+          originalTitle: uniqueTitles.join(', '),
+          description: groupEvents.map(e => e.description || e.originalTitle || e.title).join('\n'),
+          assignedTo: [...new Set(groupEvents.flatMap(e => e.assignedTo))], // 중복 제거된 담당자
+          mergedEventIds: groupEvents.map(e => e.id), // 병합된 이벤트 ID들 저장
+        };
+
+        finalEvents.push(mergedEvent);
+      }
+    });
+
+    return finalEvents;
+  };
+
+  // 그룹화 적용
+  const events = groupEventsByProjectAndDate(allEvents);
 
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
@@ -1153,22 +1445,48 @@ const Schedule = () => {
               console.log('📤 Schedule.tsx onSave called with newEvent:', newEvent);
               try {
                 if (selectedEvent) {
-                  // 수정
-                  console.log('📤 Updating schedule with projectId:', newEvent.projectId, 'projectName:', newEvent.projectName);
-                  await updateScheduleInAPI(selectedEvent.id, {
-                    title: newEvent.title,
-                    start: newEvent.start,
-                    end: newEvent.end,
-                    type: 'other',
-                    project: newEvent.projectId || newEvent.projectName,  // projectId 우선 사용
-                    location: '',
-                    attendees: newEvent.assignedTo || [],
-                    description: newEvent.description,
-                    time: newEvent.time
-                  });
-                  // 수정 후 일정 다시 로드
-                  await loadSchedulesFromAPI();
-                  toast.success('일정이 수정되었습니다');
+                  // 수금 일정인지 확인 (ID가 'payment-'로 시작하는 경우)
+                  if (selectedEvent.id.startsWith('payment-')) {
+                    // payment-{cpId}-{type} 형식에서 cpId와 type 추출
+                    const parts = selectedEvent.id.split('-');
+                    const cpId = parts[1];
+                    const paymentType = parts[2]; // contract, start, middle, final
+
+                    // constructionPayment 찾기
+                    const cp = constructionPayments.find(cp => cp.id === cpId);
+                    if (cp) {
+                      // expectedPaymentDates 업데이트
+                      const updatedDates = { ...cp.expectedPaymentDates };
+                      updatedDates[paymentType as 'contract' | 'start' | 'middle' | 'final'] = newEvent.start;
+
+                      await updateConstructionPaymentInAPI(cpId, {
+                        expectedPaymentDates: updatedDates
+                      });
+                      toast.success('수금 일정이 수정되었습니다');
+                    }
+                  } else {
+                    // 일반 일정 수정
+                    console.log('📤 Updating schedule with projectId:', newEvent.projectId, 'projectName:', newEvent.projectName);
+                    // title에서 시간 텍스트 제거 (있다면)
+                    let cleanTitle = newEvent.title;
+                    const timePattern = / - (오전|오후) \d{1,2}시$/;
+                    cleanTitle = cleanTitle.replace(timePattern, '');
+
+                    await updateScheduleInAPI(selectedEvent.id, {
+                      title: cleanTitle,  // 시간 텍스트가 제거된 제목 사용
+                      start: newEvent.start,
+                      end: newEvent.end,
+                      type: 'other',
+                      project: newEvent.projectId || newEvent.projectName,  // projectId 우선 사용
+                      location: '',
+                      attendees: newEvent.assignedTo || [],
+                      description: newEvent.description,
+                      time: newEvent.time
+                    });
+                    // 수정 후 일정 다시 로드
+                    await loadSchedulesFromAPI();
+                    toast.success('일정이 수정되었습니다');
+                  }
                 } else {
                   // 추가
                   console.log('📤 Adding schedule with projectId:', newEvent.projectId, 'projectName:', newEvent.projectName);
@@ -1194,8 +1512,41 @@ const Schedule = () => {
             }}
             onDelete={async (eventId: string) => {
               try {
-                await deleteScheduleFromAPI(eventId);
-                toast.success('일정이 삭제되었습니다');
+                // 수금 일정인지 확인 (ID가 'payment-'로 시작하는 경우)
+                if (eventId.startsWith('payment-')) {
+                  // payment-{cpId}-{type} 형식에서 cpId와 type 추출
+                  const parts = eventId.split('-');
+                  const cpId = parts[1];
+                  const paymentType = parts[2];
+
+                  // constructionPayment 찾기
+                  const cp = constructionPayments.find(cp => cp.id === cpId);
+                  if (cp) {
+                    // expectedPaymentDates에서 해당 필드 제거
+                    const updatedDates = { ...cp.expectedPaymentDates };
+                    delete updatedDates[paymentType as 'contract' | 'start' | 'middle' | 'final'];
+
+                    await updateConstructionPaymentInAPI(cpId, {
+                      expectedPaymentDates: updatedDates
+                    });
+                    toast.success('수금 일정이 삭제되었습니다');
+                  }
+                }
+                // AS 방문 일정인지 확인 (ID가 'as-'로 시작하는 경우)
+                else if (eventId.startsWith('as-')) {
+                  // AS 요청 ID 추출 (예: 'as-2' -> '2')
+                  const asRequestId = eventId.replace('as-', '');
+                  // AS 요청의 방문 예정일 제거
+                  await updateASRequestInAPI(asRequestId, {
+                    scheduledVisitDate: null,
+                    scheduledVisitTime: null
+                  });
+                  toast.success('AS 방문 일정이 삭제되었습니다');
+                } else {
+                  // 일반 일정 삭제
+                  await deleteScheduleFromAPI(eventId);
+                  toast.success('일정이 삭제되었습니다');
+                }
                 setShowModal(false);
               } catch (error) {
                 console.error('Failed to delete schedule:', error);
