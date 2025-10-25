@@ -160,11 +160,41 @@ const ExecutionHistory = () => {
   const paymentRecords = payments
     .filter(p => p.status === 'approved' || p.status === 'completed')
     .map(payment => {
-      // 결제요청의 금액은 이미 부가세 포함 총액으로 간주
-      // 부가세 포함 금액에서 공급가액과 부가세를 역산
-      const totalWithVat = payment.amount;
-      const supplyPrice = Math.round(totalWithVat / 1.1); // 공급가액 = 총액 / 1.1
-      const vatAmount = totalWithVat - supplyPrice; // 부가세 = 총액 - 공급가액
+      // 결제요청에서 자재비와 인건비 가져오기
+      const materialCost = payment.materialAmount || 0;
+      const laborCost = payment.laborAmount || 0;
+      const totalAmount = payment.amount || 0;
+
+      let materialSupplyAmount = materialCost;
+      let laborSupplyAmount = laborCost;
+      let vatAmount = 0;
+
+      // 자재비와 인건비가 모두 0인 경우 (이전 버전 데이터)
+      if (materialCost === 0 && laborCost === 0 && totalAmount > 0) {
+        // 전체 금액을 자재비로 처리
+        if (payment.includesVAT) {
+          materialSupplyAmount = Math.round(totalAmount / 1.1);
+          vatAmount = totalAmount - materialSupplyAmount;
+        } else {
+          materialSupplyAmount = totalAmount;
+          vatAmount = 0;
+        }
+      } else {
+        // 자재비와 인건비가 있는 경우
+        if (payment.includesVAT) {
+          // 부가세 포함인 경우: 각각 부가세 역산
+          if (materialCost > 0) {
+            materialSupplyAmount = Math.round(materialCost / 1.1);
+          }
+          if (laborCost > 0) {
+            laborSupplyAmount = Math.round(laborCost / 1.1);
+          }
+          vatAmount = totalAmount - (materialSupplyAmount + laborSupplyAmount);
+        } else {
+          // 부가세 미포함인 경우
+          vatAmount = 0;
+        }
+      }
 
       return {
         id: payment.id,
@@ -174,10 +204,10 @@ const ExecutionHistory = () => {
         date: payment.requestDate,
         process: payment.process || '-',
         itemName: payment.itemName || payment.purpose || '-',
-        materialCost: supplyPrice, // 공급가액 (자재비)
-        laborCost: 0,
-        vatAmount: vatAmount, // 역산된 부가세
-        totalAmount: totalWithVat, // 원래 금액 그대로 (부가세 포함)
+        materialCost: materialSupplyAmount, // 자재비 (공급가액)
+        laborCost: laborSupplyAmount, // 인건비 (공급가액)
+        vatAmount: vatAmount, // 부가세
+        totalAmount: totalAmount, // 총액
         images: paymentRecordImages[payment.id] || [],
         notes: payment.notes
       };
