@@ -213,6 +213,10 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     console.log('🔴 Available projects:', projects.map(p => ({ id: p.id, name: p.name, idType: typeof p.id })));
     console.log('🔴 Merged event IDs:', event?.mergedEventIds);
 
+    // 제목에서 시간 텍스트 제거 (혹시 남아있을 경우를 대비)
+    const timePattern = / - (오전|오후) \d{1,2}시$/;
+    const cleanedTitle = data.title.replace(timePattern, '').trim();
+
     let projectName = '';
     let projectId = '';
 
@@ -234,7 +238,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       projectId = data.projectId;
     }
 
-    console.log('🔴 Final projectId:', projectId, 'projectName:', projectName);
+    console.log('🔴 Final projectId:', projectId, 'projectName:', projectName, 'cleanedTitle:', cleanedTitle);
 
     const eventDate = new Date(data.date);
 
@@ -256,7 +260,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     // 병합된 이벤트나 단일 이벤트 처리
     const newEvent = {
       ...event,
-      title: data.title,
+      title: cleanedTitle,  // 정리된 제목 사용
       start: eventDate,
       end: eventDate,
       projectId: projectId,
