@@ -48,13 +48,20 @@ const Dashboard = () => {
             const { todaySchedules, upcomingSchedules } = getMemberSchedules(member);
             const totalTasks = todaySchedules.length + upcomingSchedules.length;
 
+            const isCurrentUser = member === userNameWithoutSurname;
+
             return (
-              <div key={member} className="card p-4 md:p-4">
+              <div key={member} className={`card p-4 md:p-4 ${isCurrentUser ? 'ring-1 ring-gray-400' : ''}`}>
                 {/* 헤더 */}
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
-                  <h3 className="font-bold text-lg md:text-lg text-gray-900">{member}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-2.5 py-1 bg-gray-100 text-gray-900 rounded-full font-semibold whitespace-nowrap">
+                    <h3 className="font-bold text-lg md:text-lg text-gray-900">{member}</h3>
+                    {isCurrentUser && (
+                      <span className="text-xs px-2 py-0.5 bg-gray-100/50 text-gray-900 rounded font-medium">나</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2.5 py-1 ${isCurrentUser && todaySchedules.length > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-900'} rounded-full font-semibold whitespace-nowrap`}>
                       {todaySchedules.length} 오늘
                     </span>
                     <span className="text-xs px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full font-semibold whitespace-nowrap">
@@ -80,20 +87,28 @@ const Dashboard = () => {
                           return acc;
                         }, {} as Record<string, typeof todaySchedules>);
 
-                        return Object.entries(grouped).map(([projectName, schedules]) => (
-                          <div key={projectName} className="border-l-3 border-gray-900 bg-gray-50 rounded-r overflow-hidden">
-                            <div className="px-3 py-1.5 bg-gray-100 border-b border-gray-200">
-                              <span className="text-xs font-semibold text-gray-700">{projectName}</span>
+                        return Object.entries(grouped).map(([projectName, schedules]) => {
+                          // 로그인한 사용자의 카드인지 확인
+                          const isCurrentUser = member === userNameWithoutSurname;
+
+                          return (
+                            <div
+                              key={projectName}
+                              className={`border-l-3 ${isCurrentUser ? 'border-gray-400' : 'border-gray-900'} ${isCurrentUser ? 'bg-yellow-50' : 'bg-gray-50'} rounded-r overflow-hidden`}
+                            >
+                              <div className={`px-3 py-1.5 ${isCurrentUser ? 'bg-yellow-100' : 'bg-gray-100'} border-b ${isCurrentUser ? 'border-yellow-200' : 'border-gray-200'}`}>
+                                <span className="text-xs font-semibold text-gray-900">{projectName}</span>
+                              </div>
+                              <div className="px-3 py-2 space-y-1">
+                                {schedules.map((schedule) => (
+                                  <p key={schedule.id} className="font-medium text-gray-900 text-sm leading-relaxed">
+                                    • {schedule.title}
+                                  </p>
+                                ))}
+                              </div>
                             </div>
-                            <div className="px-3 py-2 space-y-1">
-                              {schedules.map((schedule) => (
-                                <p key={schedule.id} className="font-medium text-gray-900 text-sm leading-relaxed">
-                                  • {schedule.title}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        ));
+                          );
+                        });
                       })()}
                     </div>
                   </div>

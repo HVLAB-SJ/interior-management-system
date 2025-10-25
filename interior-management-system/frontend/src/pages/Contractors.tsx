@@ -10,11 +10,23 @@ const positions = [
   '팀원', '파트장', '조장', '감독', '기사', '수석', '책임'
 ];
 
-// Extract Korean position title from name (e.g., "김혁실장" -> "실장", "염동호 사장님" -> "사장")
+// Extract Korean position title from name (e.g., "김혁실장" -> "실장", "염동호 사장님" -> "사장", "성정현 반장" -> "반장")
 const extractPosition = (name: string): string => {
   // Remove "님" suffix first if present
   const cleanName = name.replace(/님$/g, '').trim();
 
+  // Check if position is separated by space (e.g., "성정현 반장")
+  const parts = cleanName.split(' ');
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    for (const position of positions) {
+      if (lastPart === position) {
+        return position;
+      }
+    }
+  }
+
+  // Check if position is attached to the name (e.g., "김혁실장")
   for (const position of positions) {
     if (cleanName.endsWith(position)) {
       return position;
@@ -24,14 +36,26 @@ const extractPosition = (name: string): string => {
   return '';
 };
 
-// Remove position from name (e.g., "김혁실장" -> "김혁", "염동호 사장님" -> "염동호")
+// Remove position from name (e.g., "김혁실장" -> "김혁", "염동호 사장님" -> "염동호", "성정현 반장" -> "성정현")
 const removePosition = (name: string): string => {
   if (!name) return name;
 
   // Remove "님" suffix first if present
   let cleanName = name.replace(/님$/g, '').trim();
 
-  // Remove position if found at the end
+  // Check if position is separated by space
+  const parts = cleanName.split(' ');
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    for (const position of positions) {
+      if (lastPart === position) {
+        // Return everything except the last part (position)
+        return parts.slice(0, -1).join(' ').trim();
+      }
+    }
+  }
+
+  // Remove position if found at the end (attached to name)
   for (const position of positions) {
     if (cleanName.endsWith(position)) {
       return cleanName.substring(0, cleanName.length - position.length).trim();
@@ -184,11 +208,23 @@ export default function Contractors() {
         }
       }
 
+      // 이름에서 직책 분리
+      let cleanName = contractor.name;
+      let position = contractor.position || '';
+
+      // 이름에 직책이 포함된 경우 분리
+      if (!position) {
+        // 이름에서 직책 추출
+        position = extractPosition(contractor.name);
+        // 이름에서 직책 제거
+        cleanName = removePosition(contractor.name);
+      }
+
       setFormData({
         rank: contractor.rank || '',
         companyName: contractor.companyName || '',
-        name: contractor.name,
-        position: contractor.position || '',
+        name: cleanName,
+        position: position,
         process: contractor.process,
         contact: contractor.contact || '',
         bankName: bankName,

@@ -612,29 +612,29 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
           )}
 
           {/* Bank Info */}
-          <div className="border-t pt-6">
+          <div className="w-full border-t pt-6">
             <h3 className="text-lg font-medium mb-4">계좌 정보</h3>
-            <div className="space-y-4">
-              <div>
+            <div className="w-full space-y-4">
+              <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   예금주 *
                 </label>
                 <input
                   {...register('accountHolder', { required: '예금주를 입력하세요' })}
                   type="text"
-                  className="input"
+                  className="input w-full"
                   placeholder="홍길동"
                   id="accountHolder"
                 />
               </div>
 
-              <div>
+              <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   은행명 *
                 </label>
                 <select
                   {...register('bankName', { required: '은행을 선택하세요' })}
-                  className="input"
+                  className="input w-full"
                   id="bankName"
                 >
                   <option value="">선택하세요</option>
@@ -683,14 +683,14 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 </select>
               </div>
 
-              <div>
+              <div className="w-full">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   계좌번호 *
                 </label>
                 <input
                   {...register('accountNumber', { required: '계좌번호를 입력하세요' })}
                   type="text"
-                  className="input"
+                  className="input w-full"
                   placeholder="123-456-789012"
                   id="accountNumber"
                 />
@@ -717,10 +717,10 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
           </div>
 
           {/* Attachments */}
-          <div className="border-t pt-6">
+          <div className="w-full border-t pt-6">
             <h3 className="text-lg font-medium mb-4">첨부파일 (영수증, 견적서)</h3>
 
-            <div className="mb-4">
+            <div className="w-full mb-4">
               <label className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-colors">
                 <div className="text-center">
                   <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
@@ -743,7 +743,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
             {/* Attachment Preview */}
             {(attachments.length > 0 || imagePreview.length > 0) && (
-              <div className="space-y-2">
+              <div className="w-full space-y-2">
                 {attachments.map((file, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-3">
@@ -771,7 +771,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
             {/* Image Previews */}
             {imagePreview.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                 {imagePreview.map((preview, index) => (
                   <div key={index} className="relative">
                     <img

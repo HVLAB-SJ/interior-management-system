@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import type { Project } from '../store/dataStore';
+import AddressSearch from './AddressSearch';
 
 interface ProjectModalProps {
   project: Project | null;
@@ -18,23 +19,35 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
       name: '',
       client: '',
       location: '',
+      detailLocation: '',
       startDate: '',
       endDate: ''
     }
   });
   const [selectedManagers, setSelectedManagers] = useState<string[]>([]);
   const [customManager, setCustomManager] = useState('');
+  const [fullLocation, setFullLocation] = useState('');
+  const [detailLocation, setDetailLocation] = useState('');
 
   useEffect(() => {
     if (project) {
+      // 기존 location 필드를 분리 (주소와 상세주소가 쉼표로 구분되어 있다고 가정)
+      const locationParts = project.location ? project.location.split(',') : ['', ''];
+      const mainLocation = locationParts[0]?.trim() || project.location || '';
+      const detail = locationParts.length > 1 ? locationParts.slice(1).join(',').trim() : '';
+
       // Reset form with project data when editing
       reset({
         name: project.name,
         client: project.client || '',
-        location: project.location,
+        location: mainLocation,
+        detailLocation: detail,
         startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
         endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : ''
       });
+      setFullLocation(mainLocation);
+      setDetailLocation(detail);
+
       // Parse manager field if it contains multiple managers
       // Filter out "미지정" (unassigned) entries
       const managers = project.manager
@@ -47,9 +60,12 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
         name: '',
         client: '',
         location: '',
+        detailLocation: '',
         startDate: '',
         endDate: ''
       });
+      setFullLocation('');
+      setDetailLocation('');
       setSelectedManagers([]);
     }
   }, [project, reset]);
@@ -76,10 +92,15 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
   const onSubmit = (data: any) => {
     console.log('📋 ProjectModal onSubmit - Raw form data:', data);
 
+    // 전체 주소 조합
+    const completeLocation = fullLocation && detailLocation
+      ? `${fullLocation}, ${detailLocation}`
+      : fullLocation || data.location;
+
     const formData: any = {
       name: data.name,
       client: data.client,
-      location: data.location,
+      location: completeLocation,
       manager: selectedManagers.join(', '),
       // Keep existing values when editing, use defaults when creating new
       contractAmount: project?.contractAmount ?? 0,
@@ -146,23 +167,22 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-4 md:p-6 space-y-4 md:space-y-6">
-          {/* Project Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              프로젝트명 *
-            </label>
-            <input
-              {...register('name', { required: '프로젝트명을 입력하세요' })}
-              type="text"
-              className="input"
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{String(errors.name.message)}</p>
-            )}
-          </div>
-
-          {/* Client & Location */}
+          {/* Project Name & Client - 같은 줄에 배치 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                프로젝트명 *
+              </label>
+              <input
+                {...register('name', { required: '프로젝트명을 입력하세요' })}
+                type="text"
+                className="input"
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">{String(errors.name.message)}</p>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 고객명
@@ -173,20 +193,30 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
                 className="input"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                위치 *
-              </label>
-              <input
-                {...register('location', { required: '위치를 입력하세요' })}
-                type="text"
-                className="input"
-              />
-              {errors.location && (
-                <p className="mt-1 text-sm text-red-600">{String(errors.location.message)}</p>
-              )}
-            </div>
+          {/* Location - 전체 너비 사용 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              위치 *
+            </label>
+            <AddressSearch
+              value={fullLocation}
+              detailValue={detailLocation}
+              onChange={(address, detail) => {
+                setFullLocation(address);
+                setDetailLocation(detail || '');
+                setValue('location', address);
+                setValue('detailLocation', detail || '');
+              }}
+              onDetailChange={(detail) => {
+                setDetailLocation(detail);
+                setValue('detailLocation', detail);
+              }}
+              placeholder="클릭하여 주소 검색"
+              required={true}
+              error={errors.location ? String(errors.location.message) : undefined}
+            />
           </div>
 
 
