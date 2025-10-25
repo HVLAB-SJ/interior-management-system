@@ -65,6 +65,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
   const [materialAmount, setMaterialAmount] = useState<number>(0);
   const [laborAmount, setLaborAmount] = useState<number>(0);
   const [originalLaborAmount, setOriginalLaborAmount] = useState<number>(0);
+  const [originalMaterialAmount, setOriginalMaterialAmount] = useState<number>(0);
 
   // Load contractors from MongoDB
   useEffect(() => {
@@ -103,8 +104,17 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
       // 자재비와 인건비 설정
       const material = payment.materialAmount || 0;
       const labor = payment.laborAmount || 0;
-      setMaterialAmount(material);
-      setValue('materialAmount', material);
+
+      // 자재비 설정 - 원래 금액과 공제 상태 복원
+      if (payment.originalMaterialAmount) {
+        setOriginalMaterialAmount(payment.originalMaterialAmount);
+        setMaterialAmount(material);
+        setValue('materialAmount', material);
+      } else {
+        setOriginalMaterialAmount(material);
+        setMaterialAmount(material);
+        setValue('materialAmount', material);
+      }
 
       // 인건비 설정 - 원래 금액과 공제/VAT 상태 복원
       if (payment.originalLaborAmount) {
@@ -319,6 +329,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
       amount: totalAmount, // Send total as single 'amount' field
       materialAmount: materialAmount, // 자재비 저장
       laborAmount: laborAmount, // 인건비 저장
+      originalMaterialAmount: originalMaterialAmount, // 원래 자재비 저장
       originalLaborAmount: originalLaborAmount, // 원래 인건비 저장
       applyTaxDeduction: applyTaxDeduction, // 3.3% 공제 여부 저장
       includesVAT: includesVAT, // 부가세 포함 여부 저장
@@ -350,30 +361,6 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-          {/* Urgent Request Toggle */}
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <AlertCircle className={`h-5 w-5 ${isUrgent ? 'text-red-600' : 'text-gray-400'}`} />
-                <div>
-                  <span className="font-medium text-gray-900">긴급 결제 요청</span>
-                  <p className="text-sm text-gray-600 mt-0.5">
-                    긴급 요청 시 알림톡과 함께 SMS가 추가로 발송됩니다
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isUrgent}
-                  onChange={(e) => setIsUrgent(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-              </label>
-            </label>
-          </div>
-
           {/* Project and Requested By */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -558,38 +545,18 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 onChange={(e) => {
                   const value = e.target.value === '' ? 0 : Number(e.target.value);
                   console.log('Material amount input:', e.target.value, '→', value);
-                  setMaterialAmount(value);
-                  setValue('materialAmount', value);
+                  setOriginalMaterialAmount(value);
+                  // 3.3% 공제가 체크되어 있으면 공제 적용
+                  if (applyTaxDeduction) {
+                    const deductedAmount = Math.round(value * 0.967);
+                    setMaterialAmount(deductedAmount);
+                    setValue('materialAmount', deductedAmount);
+                  } else {
+                    setMaterialAmount(value);
+                    setValue('materialAmount', value);
+                  }
                 }}
               />
-
-              {/* VAT Info Boxes - Moved to material amount section */}
-              {!includesVAT && originalLaborAmount > 0 && (
-                <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-medium">공급가액:</span> {originalLaborAmount.toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-gray-700 mt-1">
-                    <span className="font-medium">부가세 미포함</span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      (부가세 포함 시: {Math.round(originalLaborAmount * 1.1).toLocaleString()}원)
-                    </span>
-                  </p>
-                </div>
-              )}
-              {includesVAT && originalLaborAmount > 0 && (
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-900">
-                    <span className="font-medium">공급가액:</span> {Math.round(originalLaborAmount / 1.1).toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-green-900 mt-1">
-                    <span className="font-medium">부가세 (10%):</span> {Math.round(originalLaborAmount - (originalLaborAmount / 1.1)).toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-green-900 mt-1 font-medium">
-                    <span className="font-medium">합계:</span> {originalLaborAmount.toLocaleString()}원
-                  </p>
-                </div>
-              )}
             </div>
 
             <div>
@@ -605,15 +572,26 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                 const value = e.target.value === '' ? 0 : Number(e.target.value);
                 console.log('Labor amount input:', e.target.value, '→', value);
                 setOriginalLaborAmount(value);
-                // 항상 입력한 금액 그대로 사용
-                // 3.3% 공제는 체크박스로만 적용하고, 입력 중에는 영향 없음
-                setLaborAmount(value);
-                setValue('laborAmount', value);
+                // 3.3% 공제가 체크되어 있으면 공제 적용
+                if (applyTaxDeduction) {
+                  const deductedAmount = Math.round(value * 0.967);
+                  setLaborAmount(deductedAmount);
+                  setValue('laborAmount', deductedAmount);
+                } else {
+                  setLaborAmount(value);
+                  setValue('laborAmount', value);
+                }
               }}
             />
+          </div>
+          </div>
 
-            {/* Tax Deduction Checkbox (only for labor) */}
-            <div className="mt-3">
+          {/* Tax Options - Applied to both Material and Labor */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">세금 옵션</h4>
+
+            {/* Tax Deduction Checkbox */}
+            <div className="mb-3">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -623,26 +601,50 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                     setApplyTaxDeduction(checked);
                     if (checked) {
                       setIncludesVAT(false); // 3.3% 공제 선택 시 부가세 체크 해제
-                      if (originalLaborAmount > 0) {
-                        const deductedAmount = Math.round(originalLaborAmount * 0.967);
-                        setLaborAmount(deductedAmount);
-                        setValue('laborAmount', deductedAmount);
+                      // 자재비 공제 적용
+                      if (originalMaterialAmount > 0) {
+                        const deductedMaterial = Math.round(originalMaterialAmount * 0.967);
+                        setMaterialAmount(deductedMaterial);
+                        setValue('materialAmount', deductedMaterial);
                       }
-                    } else if (originalLaborAmount > 0) {
-                      setLaborAmount(originalLaborAmount);
-                      setValue('laborAmount', originalLaborAmount);
+                      // 인건비 공제 적용
+                      if (originalLaborAmount > 0) {
+                        const deductedLabor = Math.round(originalLaborAmount * 0.967);
+                        setLaborAmount(deductedLabor);
+                        setValue('laborAmount', deductedLabor);
+                      }
+                    } else {
+                      // 공제 해제 - 원래 금액으로 복원
+                      if (originalMaterialAmount > 0) {
+                        setMaterialAmount(originalMaterialAmount);
+                        setValue('materialAmount', originalMaterialAmount);
+                      }
+                      if (originalLaborAmount > 0) {
+                        setLaborAmount(originalLaborAmount);
+                        setValue('laborAmount', originalLaborAmount);
+                      }
                     }
                   }}
                   className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
                 />
                 <span className="text-sm text-gray-700">
-                  3.3% 세금 공제 (프리랜서/개인사업자)
+                  3.3% 세금 공제 (프리랜서/개인사업자) - 자재비와 인건비 모두 적용
                 </span>
               </label>
+              {applyTaxDeduction && (originalMaterialAmount > 0 || originalLaborAmount > 0) && (
+                <div className="mt-2 ml-6 text-xs text-amber-700">
+                  {originalMaterialAmount > 0 && (
+                    <div>자재비: {originalMaterialAmount.toLocaleString()}원 → {materialAmount.toLocaleString()}원 (공제: {(originalMaterialAmount - materialAmount).toLocaleString()}원)</div>
+                  )}
+                  {originalLaborAmount > 0 && (
+                    <div>인건비: {originalLaborAmount.toLocaleString()}원 → {laborAmount.toLocaleString()}원 (공제: {(originalLaborAmount - laborAmount).toLocaleString()}원)</div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* VAT Checkbox */}
-            <div className="mt-3">
+            <div>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -652,9 +654,16 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                     setIncludesVAT(checked);
                     if (checked) {
                       setApplyTaxDeduction(false); // 부가세 포함 선택 시 3.3% 공제 해제
-                      if (applyTaxDeduction && originalLaborAmount > 0) {
-                        setLaborAmount(originalLaborAmount);
-                        setValue('laborAmount', originalLaborAmount); // 공제 해제되므로 원래 금액으로 복원
+                      // 3.3% 공제가 적용되어 있었다면 원래 금액으로 복원
+                      if (applyTaxDeduction) {
+                        if (originalMaterialAmount > 0) {
+                          setMaterialAmount(originalMaterialAmount);
+                          setValue('materialAmount', originalMaterialAmount);
+                        }
+                        if (originalLaborAmount > 0) {
+                          setLaborAmount(originalLaborAmount);
+                          setValue('laborAmount', originalLaborAmount);
+                        }
                       }
                     }
                   }}
@@ -664,8 +673,14 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                   부가세 포함 금액
                 </span>
               </label>
+              {includesVAT && (originalMaterialAmount + originalLaborAmount > 0) && (
+                <div className="mt-2 ml-6 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-900">
+                  <div>공급가액: {Math.round((originalMaterialAmount + originalLaborAmount) / 1.1).toLocaleString()}원</div>
+                  <div>부가세 (10%): {Math.round((originalMaterialAmount + originalLaborAmount) - ((originalMaterialAmount + originalLaborAmount) / 1.1)).toLocaleString()}원</div>
+                  <div className="font-medium">합계: {(originalMaterialAmount + originalLaborAmount).toLocaleString()}원</div>
+                </div>
+              )}
             </div>
-          </div>
           </div>
 
           {/* Total Amount */}
@@ -862,21 +877,66 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-outline"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!!payment}
-            >
-              {payment ? '확인' : '요청하기'}
-            </button>
+          <div className="flex justify-between items-center pt-4 border-t">
+            {/* Urgent Request Toggle - Moved to button area */}
+            {!payment && (
+              <div className="flex items-center space-x-3">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isUrgent}
+                    onChange={(e) => setIsUrgent(e.target.checked)}
+                    className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className={`h-4 w-4 ${isUrgent ? 'text-red-600' : 'text-gray-400'}`} />
+                    <span className={`text-sm ${isUrgent ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
+                      긴급 결제
+                    </span>
+                  </div>
+                </label>
+                {isUrgent && (
+                  <span className="text-xs text-red-600">
+                    SMS 추가 발송
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="flex space-x-3 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn btn-outline"
+              >
+                취소
+              </button>
+              {!payment && isUrgent && (
+                <button
+                  type="submit"
+                  className="btn bg-red-600 hover:bg-red-700 text-white"
+                >
+                  긴급 요청하기
+                </button>
+              )}
+              {!payment && !isUrgent && (
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  요청하기
+                </button>
+              )}
+              {payment && (
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled
+                >
+                  확인
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </div>

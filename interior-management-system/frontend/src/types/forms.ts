@@ -24,6 +24,7 @@ export interface PaymentRequestFormData {
   amount: number;
   materialAmount?: number;
   laborAmount?: number;
+  originalMaterialAmount?: number;
   originalLaborAmount?: number;
   applyTaxDeduction?: boolean;
   includesVAT?: boolean;
