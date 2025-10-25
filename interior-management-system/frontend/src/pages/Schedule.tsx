@@ -1472,20 +1472,51 @@ const Schedule = () => {
                     const timePattern = / - (오전|오후) \d{1,2}시$/;
                     cleanTitle = cleanTitle.replace(timePattern, '');
 
-                    await updateScheduleInAPI(selectedEvent.id, {
-                      title: cleanTitle,  // 시간 텍스트가 제거된 제목 사용
-                      start: newEvent.start,
-                      end: newEvent.end,
-                      type: 'other',
-                      project: newEvent.projectId || newEvent.projectName,  // projectId 우선 사용
-                      location: '',
-                      attendees: newEvent.assignedTo || [],
-                      description: newEvent.description,
-                      time: newEvent.time
-                    });
+                    // 병합된 일정인 경우 모든 관련 일정을 업데이트
+                    if (selectedEvent.mergedEventIds && selectedEvent.mergedEventIds.length > 0) {
+                      console.log('📤 Updating merged schedules:', selectedEvent.mergedEventIds);
+
+                      // 병합된 일정들의 원래 제목들 분리
+                      const originalTitles = (selectedEvent.originalTitle || selectedEvent.title).split(', ');
+                      const newTitles = cleanTitle.split(', ');
+
+                      // 각 병합된 일정을 개별적으로 업데이트
+                      for (let i = 0; i < selectedEvent.mergedEventIds.length; i++) {
+                        const scheduleId = selectedEvent.mergedEventIds[i];
+                        // 새 제목이 있으면 사용, 없으면 원래 제목 유지
+                        const individualTitle = newTitles[i] || originalTitles[i] || cleanTitle;
+
+                        await updateScheduleInAPI(scheduleId, {
+                          title: individualTitle.trim(),
+                          start: newEvent.start,
+                          end: newEvent.end,
+                          type: 'other',
+                          project: newEvent.projectId || newEvent.projectName,
+                          location: '',
+                          attendees: newEvent.assignedTo || [],
+                          description: newEvent.description,
+                          time: newEvent.time
+                        });
+                      }
+                      toast.success(`${selectedEvent.mergedEventIds.length}개의 일정이 수정되었습니다`);
+                    } else {
+                      // 단일 일정 수정
+                      await updateScheduleInAPI(selectedEvent.id, {
+                        title: cleanTitle,
+                        start: newEvent.start,
+                        end: newEvent.end,
+                        type: 'other',
+                        project: newEvent.projectId || newEvent.projectName,
+                        location: '',
+                        attendees: newEvent.assignedTo || [],
+                        description: newEvent.description,
+                        time: newEvent.time
+                      });
+                      toast.success('일정이 수정되었습니다');
+                    }
+
                     // 수정 후 일정 다시 로드
                     await loadSchedulesFromAPI();
-                    toast.success('일정이 수정되었습니다');
                   }
                 } else {
                   // 추가
@@ -1544,8 +1575,20 @@ const Schedule = () => {
                   toast.success('AS 방문 일정이 삭제되었습니다');
                 } else {
                   // 일반 일정 삭제
-                  await deleteScheduleFromAPI(eventId);
-                  toast.success('일정이 삭제되었습니다');
+                  // 병합된 일정인 경우 모든 관련 일정 삭제
+                  const eventToDelete = events.find(e => e.id === eventId);
+                  if (eventToDelete?.mergedEventIds && eventToDelete.mergedEventIds.length > 0) {
+                    // 병합된 모든 일정 삭제
+                    console.log('Deleting merged schedules:', eventToDelete.mergedEventIds);
+                    for (const id of eventToDelete.mergedEventIds) {
+                      await deleteScheduleFromAPI(id);
+                    }
+                    toast.success(`${eventToDelete.mergedEventIds.length}개의 일정이 삭제되었습니다`);
+                  } else {
+                    // 단일 일정 삭제
+                    await deleteScheduleFromAPI(eventId);
+                    toast.success('일정이 삭제되었습니다');
+                  }
                 }
                 setShowModal(false);
               } catch (error) {
