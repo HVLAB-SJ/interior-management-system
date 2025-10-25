@@ -55,6 +55,11 @@ const ExecutionHistory = () => {
     const stored = localStorage.getItem('paymentRecordImages');
     return stored ? JSON.parse(stored) : {};
   });
+  // 실행내역에서 숨긴 결제요청 ID 저장
+  const [hiddenPaymentIds, setHiddenPaymentIds] = useState<string[]>(() => {
+    const stored = localStorage.getItem('hiddenPaymentIds');
+    return stored ? JSON.parse(stored) : [];
+  });
   // 마지막 선택된 프로젝트 불러오기 (프로젝트가 없으면 첫 번째 프로젝트 선택)
   const getInitialProject = () => {
     const lastSelected = localStorage.getItem('lastSelectedProject');
@@ -112,6 +117,11 @@ const ExecutionHistory = () => {
     localStorage.setItem('paymentRecordImages', JSON.stringify(paymentRecordImages));
   }, [paymentRecordImages]);
 
+  // hiddenPaymentIds가 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem('hiddenPaymentIds', JSON.stringify(hiddenPaymentIds));
+  }, [hiddenPaymentIds]);
+
   // 클립보드 붙여넣기 처리
   const handlePaste = useCallback((e: ClipboardEvent) => {
     if (!selectedRecord) {
@@ -157,10 +167,11 @@ const ExecutionHistory = () => {
   }, [handlePaste]);
 
   // 승인된 결제요청을 실행내역 형식으로 변환
-  // 이미 executionRecord가 생성된 payment는 제외
+  // 이미 executionRecord가 생성된 payment와 숨긴 payment는 제외
   const paymentRecords = payments
     .filter(p => (p.status === 'approved' || p.status === 'completed') &&
-            !executionRecords.some(r => r.paymentId === p.id))
+            !executionRecords.some(r => r.paymentId === p.id) &&
+            !hiddenPaymentIds.includes(p.id))
     .map(payment => {
       // 결제요청에서 자재비와 인건비 가져오기
       const materialCost = payment.materialAmount || 0;
@@ -838,8 +849,12 @@ const ExecutionHistory = () => {
                           toast.success('실행내역이 삭제되었습니다');
                         }
                       } else if (selectedItem?.type === 'payment') {
-                        // payment 타입(결제요청 자동 표시)은 삭제 불가
-                        toast.error('승인/완료된 결제요청은 결제요청 메뉴에서 상태를 변경해주세요');
+                        // payment 타입(결제요청)은 실행내역에서만 숨김
+                        if (confirm('이 결제요청을 실행내역에서 숨기시겠습니까?\n(결제요청 자체는 삭제되지 않습니다)')) {
+                          setHiddenPaymentIds(prev => [...prev, selectedRecord]);
+                          setSelectedRecord(null);
+                          toast.success('결제요청이 실행내역에서 숨겨졌습니다');
+                        }
                       } else {
                         toast.error('삭제할 수 없는 항목입니다');
                       }
