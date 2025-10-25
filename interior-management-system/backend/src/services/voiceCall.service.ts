@@ -90,6 +90,11 @@ export const sendUrgentSMS = async (params: {
   urgency: 'urgent' | 'emergency';
   process?: string;
   itemName?: string;
+  bankInfo?: {
+    accountHolder: string;
+    bankName: string;
+    accountNumber: string;
+  };
 }): Promise<void> => {
   const apiKey = config.coolsms.apiKey;
   const apiSecret = config.coolsms.apiSecret;
@@ -100,9 +105,17 @@ export const sendUrgentSMS = async (params: {
     return;
   }
 
-  // 긴급도에 따른 메시지 작성 (짧게)
-  const urgencyText = params.urgency === 'emergency' ? '매우긴급' : '긴급';
-  const message = `[${urgencyText}] ${params.project} 프로젝트에서 ${params.amount.toLocaleString()}원 결제 요청이 있습니다.`;
+  // 새로운 메시지 형식
+  const urgencyPrefix = params.urgency === 'emergency' ? '🚨' : params.urgency === 'urgent' ? '⚡' : '';
+  const content = params.itemName || params.process || '결제요청';
+  const bankInfoText = params.bankInfo
+    ? `${params.bankInfo.bankName} ${params.bankInfo.accountNumber} ${params.bankInfo.accountHolder}`
+    : '계좌정보 미입력';
+
+  const message = `${urgencyPrefix}[${params.project}]
+${content}
+${bankInfoText}
+${params.amount.toLocaleString()}원`;
 
   try {
     // CoolSMS API v4 사용

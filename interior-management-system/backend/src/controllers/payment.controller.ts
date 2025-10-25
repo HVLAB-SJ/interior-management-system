@@ -126,7 +126,8 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
           project: projectExists.name,
           urgency: urgency as 'urgent' | 'emergency',
           process: process,
-          itemName: itemName
+          itemName: itemName,
+          bankInfo: bankInfo
         }).catch(err => console.error('SMS 발송 실패:', err));
       } else {
         console.warn('⚠️  NOTIFICATION_PHONE_NUMBER 환경 변수가 설정되지 않았습니다.');
