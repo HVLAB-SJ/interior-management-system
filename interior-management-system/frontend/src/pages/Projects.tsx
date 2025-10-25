@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import clsx from 'clsx';
@@ -117,7 +117,7 @@ const Projects = () => {
     }
   };
 
-  const handleSave = async (data: any) => {
+  const handleSave = async (data: Partial<Project>) => {
     try {
       if (selectedProject) {
         await updateProjectInAPI(selectedProject.id, data);
@@ -171,21 +171,21 @@ const Projects = () => {
   const handleSavePasswords = async (entrancePassword: string, sitePassword: string) => {
     if (!selectedProjectForNotes) return;
 
-    const oldEntrancePassword = (selectedProjectForNotes as any).entrancePassword;
-    const oldSitePassword = (selectedProjectForNotes as any).sitePassword;
+    const oldEntrancePassword = selectedProjectForNotes.entrancePassword;
+    const oldSitePassword = selectedProjectForNotes.sitePassword;
 
     // Immediately update local state for instant UI feedback
     setSelectedProjectForNotes({
       ...selectedProjectForNotes,
       entrancePassword,
       sitePassword
-    } as any);
+    });
 
     try {
       await updateProjectInAPI(selectedProjectForNotes.id, {
         entrancePassword,
         sitePassword
-      } as any);
+      });
 
       toast.success('비밀번호가 저장되었습니다');
     } catch (error) {
@@ -197,7 +197,7 @@ const Projects = () => {
         ...selectedProjectForNotes,
         entrancePassword: oldEntrancePassword,
         sitePassword: oldSitePassword
-      } as any);
+      });
     }
   };
 
@@ -222,7 +222,7 @@ const Projects = () => {
     try {
       await updateProjectInAPI(selectedProjectForNotes.id, {
         meetingNotes: updatedNotes
-      } as any);
+      });
 
       toast.success('미팅 내용이 추가되었습니다');
     } catch (error) {
@@ -258,7 +258,7 @@ const Projects = () => {
     try {
       await updateProjectInAPI(selectedProjectForNotes.id, {
         customerRequests: updatedRequests
-      } as any);
+      });
 
       toast.success('고객 요청사항이 추가되었습니다');
     } catch (error) {
@@ -290,7 +290,7 @@ const Projects = () => {
     try {
       await updateProjectInAPI(selectedProjectForNotes.id, {
         customerRequests: updatedRequests
-      } as any);
+      });
 
       toast.success('요청사항 상태가 변경되었습니다');
     } catch (error) {
@@ -320,7 +320,7 @@ const Projects = () => {
     try {
       await updateProjectInAPI(selectedProjectForNotes.id, {
         meetingNotes: updatedNotes
-      } as any);
+      });
 
       toast.success('미팅 내용이 삭제되었습니다');
     } catch (error) {
@@ -350,7 +350,7 @@ const Projects = () => {
     try {
       await updateProjectInAPI(selectedProjectForNotes.id, {
         customerRequests: updatedRequests
-      } as any);
+      });
 
       toast.success('고객 요청사항이 삭제되었습니다');
     } catch (error) {
@@ -767,8 +767,8 @@ const Projects = () => {
       {showPasswordModal && selectedProjectForNotes && (
         <SitePasswordModal
           projectName={selectedProjectForNotes.name}
-          entrancePassword={(selectedProjectForNotes as any).entrancePassword || ''}
-          sitePassword={(selectedProjectForNotes as any).sitePassword || ''}
+          entrancePassword={selectedProjectForNotes.entrancePassword || ''}
+          sitePassword={selectedProjectForNotes.sitePassword || ''}
           onClose={() => {
             setShowPasswordModal(false);
             setSelectedProjectForNotes(null);

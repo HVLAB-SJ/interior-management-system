@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { X, Edit } from 'lucide-react';
-import { useDataStore } from '../store/dataStore';
+import { useDataStore, type ConstructionPayment } from '../store/dataStore';
 import additionalWorkService from '../services/additionalWorkService';
 import toast from 'react-hot-toast';
+import type { PaymentType, PaymentRecord } from '../types/forms';
 
 interface PaymentRecord {
   id: string;
@@ -98,7 +99,7 @@ const ConstructionPayment = () => {
       vatType: record.vatType || 'percentage',
       vatPercentage: record.vatPercentage ?? 100,
       vatAmount: record.vatAmount ?? 0,
-      payments: record.payments.map((payment: any) => ({
+      payments: record.payments.map((payment: PaymentRecord) => ({
         ...payment,
         // Convert old 'types' format to new 'type' format
         type: payment.type || payment.types?.[0] || '계약금'
@@ -311,7 +312,7 @@ const ConstructionPayment = () => {
     }
 
     try {
-      const newRecord: any = {
+      const newRecord: Partial<ConstructionPayment> = {
         id: '',
         project_id: selectedProject.id,  // Add project_id for backend
         project: selectedProject.name,
@@ -1268,11 +1269,11 @@ const ConstructionPayment = () => {
                       <label key={type} className="flex items-center space-x-3 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={newPayment.types.includes(type as any)}
+                          checked={newPayment.types.includes(type as PaymentType)}
                           onChange={(e) => {
                             let updatedTypes: typeof newPayment.types;
                             if (e.target.checked) {
-                              updatedTypes = [...newPayment.types, type as any];
+                              updatedTypes = [...newPayment.types, type as PaymentType];
                             } else {
                               updatedTypes = newPayment.types.filter(t => t !== type);
                             }
@@ -1435,22 +1436,71 @@ const ConstructionPayment = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setEditingPaymentIndex(null);
-                }}
-                className="btn btn-outline"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSavePayment}
-                className="btn btn-primary"
-              >
-                {editingPaymentIndex !== null ? '수정' : '추가'}
-              </button>
+            <div className="p-6 border-t flex justify-between">
+              <div>
+                {editingPaymentIndex !== null && (
+                  <button
+                    onClick={async () => {
+                      if (!selectedRecord) return;
+
+                      if (!window.confirm('이 입금 내역을 삭제하시겠습니까?')) {
+                        return;
+                      }
+
+                      try {
+                        // Remove the payment from the array
+                        const updatedPayments = selectedRecord.payments.filter((_, idx) => idx !== editingPaymentIndex);
+
+                        const updatedRecord = {
+                          ...selectedRecord,
+                          payments: updatedPayments
+                        };
+
+                        // Update in API
+                        await updateConstructionPaymentInAPI(selectedRecord.id, {
+                          payments: updatedPayments
+                        });
+
+                        // Update local state
+                        setSelectedRecord(updatedRecord);
+                        const updatedRecords = records.map(r =>
+                          r.id === selectedRecord.id ? updatedRecord : r
+                        );
+                        setRecords(updatedRecords);
+
+                        // Close modal
+                        setShowPaymentModal(false);
+                        setEditingPaymentIndex(null);
+
+                        toast.success('입금 내역이 삭제되었습니다');
+                      } catch (error) {
+                        console.error('Failed to delete payment:', error);
+                        toast.error('삭제에 실패했습니다');
+                      }
+                    }}
+                    className="btn btn-outline text-red-600 hover:bg-red-50 hover:border-red-300"
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setEditingPaymentIndex(null);
+                  }}
+                  className="btn btn-outline"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSavePayment}
+                  className="btn btn-primary"
+                >
+                  {editingPaymentIndex !== null ? '수정' : '추가'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

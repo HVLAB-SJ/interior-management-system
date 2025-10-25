@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { X, Upload, Image as ImageIcon, FileText, Trash2, AlertCircle } from 'lucide-react';
-import { useDataStore } from '../store/dataStore';
+import { useDataStore, type Payment } from '../store/dataStore';
 import { useAuth } from '../contexts/AuthContext';
 import contractorService from '../services/contractorService';
-import toast from 'react-hot-toast';
+import type { PaymentRequestFormData, Contractor } from '../types/forms';
 
 interface PaymentRequestModalProps {
-  payment: any;
+  payment: Payment | null;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: PaymentRequestFormData) => void;
 }
 
 // List of Korean position titles (same as in Contractors.tsx)
@@ -24,7 +24,7 @@ const removePosition = (name: string): string => {
   if (!name) return name;
 
   // Remove "님" suffix first if present
-  let cleanName = name.replace(/님$/g, '').trim();
+  const cleanName = name.replace(/님$/g, '').trim();
 
   // Check if position is separated by space
   const parts = cleanName.split(' ');
@@ -52,13 +52,13 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm();
   const { projects, payments } = useDataStore();
   const { user } = useAuth();
-  const [contractors, setContractors] = useState<any[]>([]);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['material']);
   const [isUrgent, setIsUrgent] = useState(false);
   const [selectedProcess, setSelectedProcess] = useState('');
-  const [recommendedContractors, setRecommendedContractors] = useState<any[]>([]);
+  const [recommendedContractors, setRecommendedContractors] = useState<Contractor[]>([]);
   const [selectedContractorId, setSelectedContractorId] = useState<string | null>(null);
   const [applyTaxDeduction, setApplyTaxDeduction] = useState(false);
   const [includesVAT, setIncludesVAT] = useState(false);
@@ -71,8 +71,8 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
     const loadContractors = async () => {
       try {
         const data = await contractorService.getAllContractors();
-        setContractors(data.map((c: any) => ({
-          id: c._id,
+        setContractors(data.map((c: Contractor) => ({
+          id: c._id || c.id,
           rank: c.rank,
           companyName: c.companyName,
           name: c.name,
@@ -92,7 +92,9 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
   useEffect(() => {
     if (payment) {
-      setValue('projectId', payment.project);
+      // Find project ID from project name
+      const projectId = projects.find(p => p.name === payment.project)?.id || payment.project;
+      setValue('projectId', projectId);
       setValue('process', payment.process);
       setSelectedProcess(payment.process || '');
       setValue('itemName', payment.itemName);
@@ -140,7 +142,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
       }
       setSelectedCategories(['material']);
     }
-  }, [payment, setValue, user]);
+  }, [payment, setValue, user, projects]);
 
   // 공정 변경 시 해당 공정의 협력업체 필터링
   // 1. 계좌번호를 등록한 업체
@@ -190,7 +192,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
   }, [selectedProcess, contractors, payments]);
 
   // 협력업체 선택 시 계좌 정보 자동 입력
-  const handleContractorSelect = (contractor: any) => {
+  const handleContractorSelect = (contractor: Contractor) => {
     // 선택된 협력업체 ID 설정
     setSelectedContractorId(contractor.id || contractor._id);
 
@@ -308,7 +310,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
     setImagePreview(prev => prev.filter((_, i) => i !== index));
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: Partial<PaymentRequestFormData>) => {
     // Calculate total amount from material and labor
     const totalAmount = materialAmount + laborAmount;
 
@@ -321,7 +323,7 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
       applyTaxDeduction: applyTaxDeduction, // 3.3% 공제 여부 저장
       includesVAT: includesVAT, // 부가세 포함 여부 저장
       category: selectedCategories.join(', '), // 여러 카테고리를 문자열로 저장
-      urgency: isUrgent ? 'urgent' : 'normal',
+      urgency: isUrgent ? 'urgent' : 'normal', // 긴급 여부를 전송
       requestedBy: data.requestedBy, // Include requestedBy from form
       attachments,
       status: payment ? payment.status : 'pending',
@@ -348,6 +350,30 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+          {/* Urgent Request Toggle */}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className={`h-5 w-5 ${isUrgent ? 'text-red-600' : 'text-gray-400'}`} />
+                <div>
+                  <span className="font-medium text-gray-900">긴급 결제 요청</span>
+                  <p className="text-sm text-gray-600 mt-0.5">
+                    긴급 요청 시 알림톡과 함께 SMS가 추가로 발송됩니다
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isUrgent}
+                  onChange={(e) => setIsUrgent(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+              </label>
+            </label>
+          </div>
+
           {/* Project and Requested By */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -536,6 +562,34 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                   setValue('materialAmount', value);
                 }}
               />
+
+              {/* VAT Info Boxes - Moved to material amount section */}
+              {!includesVAT && originalLaborAmount > 0 && (
+                <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">공급가액:</span> {originalLaborAmount.toLocaleString()}원
+                  </p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    <span className="font-medium">부가세 미포함</span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      (부가세 포함 시: {Math.round(originalLaborAmount * 1.1).toLocaleString()}원)
+                    </span>
+                  </p>
+                </div>
+              )}
+              {includesVAT && originalLaborAmount > 0 && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-900">
+                    <span className="font-medium">공급가액:</span> {Math.round(originalLaborAmount / 1.1).toLocaleString()}원
+                  </p>
+                  <p className="text-sm text-green-900 mt-1">
+                    <span className="font-medium">부가세 (10%):</span> {Math.round(originalLaborAmount - (originalLaborAmount / 1.1)).toLocaleString()}원
+                  </p>
+                  <p className="text-sm text-green-900 mt-1 font-medium">
+                    <span className="font-medium">합계:</span> {originalLaborAmount.toLocaleString()}원
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -610,32 +664,6 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
                   부가세 포함 금액
                 </span>
               </label>
-              {includesVAT && originalLaborAmount > 0 && (
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-900">
-                    <span className="font-medium">공급가액:</span> {Math.round(originalLaborAmount / 1.1).toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-green-900 mt-1">
-                    <span className="font-medium">부가세 (10%):</span> {Math.round(originalLaborAmount - (originalLaborAmount / 1.1)).toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-green-900 mt-1 font-medium">
-                    <span className="font-medium">합계:</span> {originalLaborAmount.toLocaleString()}원
-                  </p>
-                </div>
-              )}
-              {!includesVAT && originalLaborAmount > 0 && (
-                <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-medium">공급가액:</span> {originalLaborAmount.toLocaleString()}원
-                  </p>
-                  <p className="text-sm text-gray-700 mt-1">
-                    <span className="font-medium">부가세 미포함</span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      (부가세 포함 시: {Math.round(originalLaborAmount * 1.1).toLocaleString()}원)
-                    </span>
-                  </p>
-                </div>
-              )}
             </div>
           </div>
           </div>

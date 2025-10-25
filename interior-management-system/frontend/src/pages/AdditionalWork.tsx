@@ -83,7 +83,7 @@ const AdditionalWork = () => {
     }
   };
 
-  const handleSaveWork = async (data: any) => {
+  const handleSaveWork = async (data: Partial<AdditionalWork>) => {
     try {
       if (selectedWork) {
         await additionalWorkService.updateAdditionalWork(selectedWork.id, data);

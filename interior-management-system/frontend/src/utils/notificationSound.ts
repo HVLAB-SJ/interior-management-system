@@ -5,7 +5,8 @@
 // Web Audio API를 사용한 비프음 생성
 export const playUrgentNotification = (urgency: 'urgent' | 'emergency') => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioContext = new AudioContextClass();
 
     // 긴급도에 따라 반복 횟수 설정
     const repeatCount = urgency === 'emergency' ? 5 : 3;

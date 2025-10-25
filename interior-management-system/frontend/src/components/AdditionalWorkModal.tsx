@@ -12,10 +12,18 @@ interface AdditionalWork {
   notes?: string;
 }
 
+interface AdditionalWorkFormData {
+  project: string;
+  description: string;
+  amount: number;
+  date: Date;
+  notes?: string;
+}
+
 interface AdditionalWorkModalProps {
   work: AdditionalWork | null;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: AdditionalWorkFormData) => void;
 }
 
 const AdditionalWorkModal = ({ work, onClose, onSave }: AdditionalWorkModalProps) => {
@@ -36,7 +44,7 @@ const AdditionalWorkModal = ({ work, onClose, onSave }: AdditionalWorkModalProps
     }
   }, [work, setValue]);
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: AdditionalWorkFormData) => {
     const formData = {
       ...data,
       amount: Number(data.amount),

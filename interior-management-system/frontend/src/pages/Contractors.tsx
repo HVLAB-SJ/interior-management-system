@@ -41,7 +41,7 @@ const removePosition = (name: string): string => {
   if (!name) return name;
 
   // Remove "님" suffix first if present
-  let cleanName = name.replace(/님$/g, '').trim();
+  const cleanName = name.replace(/님$/g, '').trim();
 
   // Check if position is separated by space
   const parts = cleanName.split(' ');
@@ -105,7 +105,7 @@ export default function Contractors() {
       setLoading(true);
       setError(null);
       const data = await contractorService.getAllContractors();
-      setContractors(data.map((c: any) => ({
+      setContractors(data.map((c) => ({
         id: c._id,
         rank: c.rank,
         companyName: c.companyName,
@@ -118,16 +118,18 @@ export default function Contractors() {
         createdAt: new Date(c.createdAt),
         updatedAt: new Date(c.updatedAt)
       })));
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to load contractors:', err);
-      setError(err.response?.data?.message || '협력업체 목록을 불러오는데 실패했습니다.');
+      const errorMessage = err instanceof Error && (err as Error & { response?: { data?: { message?: string } } }).response?.data?.message;
+      setError(errorMessage || '협력업체 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
   // Migrate localStorage data to API (unused but kept for potential future use)
-  // @ts-ignore - Keeping this function for potential future use
+  // @ts-expect-error - Keeping this function for potential future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMigrateData = async () => {
     try {
       const localStorageData = localStorage.getItem('interior-management-storage');
@@ -172,7 +174,7 @@ export default function Contractors() {
 
       await loadContractors();
       alert(`마이그레이션 완료!\n성공: ${successCount}개\n실패: ${failCount}개`);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Migration error:', err);
       alert('데이터 마이그레이션 중 오류가 발생했습니다.');
     } finally {
@@ -272,9 +274,10 @@ export default function Contractors() {
 
       await loadContractors();
       handleCloseModal();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to save contractor:', err);
-      alert(err.response?.data?.message || '협력업체 저장에 실패했습니다.');
+      const errorMessage = err instanceof Error && (err as Error & { response?: { data?: { message?: string } } }).response?.data?.message;
+      alert(errorMessage || '협력업체 저장에 실패했습니다.');
     }
   };
 
@@ -283,16 +286,17 @@ export default function Contractors() {
       try {
         await contractorService.deleteContractor(id);
         await loadContractors();
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to delete contractor:', err);
-        alert(err.response?.data?.message || '협력업체 삭제에 실패했습니다.');
+        const errorMessage = err instanceof Error && (err as Error & { response?: { data?: { message?: string } } }).response?.data?.message;
+        alert(errorMessage || '협력업체 삭제에 실패했습니다.');
       }
     }
   };
 
   // 평가 순위 정렬 우선순위 함수
   // 평가 순위별 색상 반환 함수 (무채색)
-  const getRankColor = (_rank?: string): string => {
+  const getRankColor = (): string => {
     return 'border-gray-200 text-gray-600 bg-gray-50';
   };
 

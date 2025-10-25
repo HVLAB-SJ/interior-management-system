@@ -108,7 +108,7 @@ const CustomDateHeader = React.memo(({
   label: string;
   filteredEvents: ScheduleEvent[];
   selectedDate: Date | null;
-  user: any;
+  user: { id: string; name: string; role: string } | null;
   isMobileView: boolean;
 }) => {
   const dateKey = moment(date).format('YYYY-MM-DD');
@@ -230,7 +230,7 @@ const CustomDateHeader = React.memo(({
 });
 
 // 커스텀 이벤트 컴포넌트도 밖으로 이동
-const CustomEvent = React.memo(({ event, user }: { event: ScheduleEvent; user: any }) => {
+const CustomEvent = React.memo(({ event, user }: { event: ScheduleEvent; user: { id: string; name: string; role: string } | null }) => {
   const attendees = event.assignedTo || [];
   const [isTablet, setIsTablet] = useState(
     window.innerWidth >= 768 && window.innerWidth < 1024
@@ -365,7 +365,6 @@ const Schedule = () => {
     asRequests,
     updateASRequestInAPI,
     constructionPayments,
-    payments,
     updateConstructionPaymentInAPI
   } = useDataStore();
   const { user } = useAuth();
@@ -412,7 +411,7 @@ const Schedule = () => {
         end: schedule.end,
         projectId: project?.id || '',
         projectName: schedule.project || '',
-        type: schedule.type as any || 'other',
+        type: (schedule.type as ScheduleEvent['type']) || 'other',
         phase: '',
         assignedTo: schedule.attendees || [],
         priority: 'medium',
@@ -692,7 +691,7 @@ const Schedule = () => {
     // 그룹화된 이벤트를 최종 이벤트로 변환
     const finalEvents: ScheduleEvent[] = [];
 
-    grouped.forEach((groupEvents, key) => {
+    grouped.forEach((groupEvents) => {
       if (groupEvents.length === 1) {
         // 단일 이벤트는 그대로 추가
         finalEvents.push(groupEvents[0]);
@@ -745,7 +744,7 @@ const Schedule = () => {
   const [date, setDate] = useState(new Date());
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
   const [filterProject, setFilterProject] = useState<string>('all');
   // 모바일에서는 오늘 날짜를 기본 선택
   const [selectedDate, setSelectedDate] = useState<Date | null>(
@@ -801,7 +800,7 @@ const Schedule = () => {
   };
 
   // 빈 슬롯 선택 (날짜 선택)
-  const onSelectSlot = (slotInfo: any) => {
+  const onSelectSlot = (slotInfo: { start: Date; end: Date; action: string }) => {
     // 이벤트가 방금 클릭되었다면 슬롯 선택 무시
     if (eventClickedRef.current) {
       return;
@@ -970,7 +969,7 @@ const Schedule = () => {
   }, [user]);
 
   // 커스텀 툴바
-  const CustomToolbar = ({ onNavigate }: any) => {
+  const CustomToolbar = ({ onNavigate }: { onNavigate: (action: string) => void }) => {
     const [showMonthPicker, setShowMonthPicker] = React.useState(false);
     const [tempYear, setTempYear] = React.useState(moment(date).year());
     const [tempMonth, setTempMonth] = React.useState(moment(date).month());
@@ -1197,7 +1196,8 @@ const Schedule = () => {
         // 모바일에서 셀 전체에 클릭 이벤트 추가
         if (isMobileView) {
           // 기존 이벤트 리스너 제거 (중복 방지)
-          const existingHandler = (cell as any)._mobileClickHandler;
+          const cellWithHandler = cell as HTMLElement & { _mobileClickHandler?: (e: Event) => void };
+          const existingHandler = cellWithHandler._mobileClickHandler;
           if (existingHandler) {
             cell.removeEventListener('click', existingHandler);
           }
@@ -1223,7 +1223,7 @@ const Schedule = () => {
           };
 
           // 이벤트 리스너 저장 (나중에 제거할 수 있도록)
-          (cell as any)._mobileClickHandler = clickHandler;
+          cellWithHandler._mobileClickHandler = clickHandler;
 
           // click 이벤트만 등록 (즉시 반응하도록)
           cell.addEventListener('click', clickHandler, true);
@@ -1244,10 +1244,11 @@ const Schedule = () => {
       if (isMobileView) {
         const dateCells = document.querySelectorAll('.rbc-month-view td.rbc-date-cell');
         dateCells.forEach(cell => {
-          const handler = (cell as any)._mobileClickHandler;
+          const cellWithHandler = cell as Element & { _mobileClickHandler?: (e: Event) => void };
+          const handler = cellWithHandler._mobileClickHandler;
           if (handler) {
             cell.removeEventListener('click', handler);
-            delete (cell as any)._mobileClickHandler;
+            delete cellWithHandler._mobileClickHandler;
           }
         });
       }
@@ -1441,7 +1442,7 @@ const Schedule = () => {
               setSelectedEvent(null);
               setSelectedSlot(null);
             }}
-            onSave={async (newEvent: any) => {
+            onSave={async (newEvent: Partial<ScheduleEvent>) => {
               console.log('📤 Schedule.tsx onSave called with newEvent:', newEvent);
               try {
                 if (selectedEvent) {

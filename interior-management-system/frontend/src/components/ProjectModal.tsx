@@ -4,17 +4,37 @@ import { X } from 'lucide-react';
 import type { Project } from '../store/dataStore';
 import AddressSearch from './AddressSearch';
 
+interface ProjectFormData {
+  name: string;
+  client: string;
+  location: string;
+  detailLocation?: string;
+  startDate?: string;
+  endDate?: string;
+  manager: string;
+  team?: string[];
+  contractAmount?: number;
+  spent?: number;
+  status?: Project['status'];
+  progress?: number;
+  description?: string;
+  meetingNotes?: unknown[];
+  customerRequests?: unknown[];
+  entrancePassword?: string;
+  sitePassword?: string;
+}
+
 interface ProjectModalProps {
   project: Project | null;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: ProjectFormData) => void;
 }
 
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
 
 const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
   // Set defaultValues properly so form includes all fields even if not touched
-  const { register, handleSubmit, setValue, reset, formState: { errors }, watch } = useForm({
+  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       client: '',
@@ -89,7 +109,7 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
     setSelectedManagers(prev => prev.filter(m => m !== name));
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: ProjectFormData) => {
     console.log('📋 ProjectModal onSubmit - Raw form data:', data);
 
     // 전체 주소 조합
@@ -97,7 +117,7 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
       ? `${fullLocation}, ${detailLocation}`
       : fullLocation || data.location;
 
-    const formData: any = {
+    const formData: ProjectFormData = {
       name: data.name,
       client: data.client,
       location: completeLocation,
@@ -109,10 +129,10 @@ const ProjectModal = ({ project, onClose, onSave }: ProjectModalProps) => {
       progress: project?.progress ?? 0,
       description: project?.description ?? '',
       // Don't send team field - it will be derived from manager and fieldManagers on backend
-      meetingNotes: (project as any)?.meetingNotes ?? [],
-      customerRequests: (project as any)?.customerRequests ?? [],
-      entrancePassword: (project as any)?.entrancePassword ?? '',
-      sitePassword: (project as any)?.sitePassword ?? ''
+      meetingNotes: project?.meetingNotes ?? [],
+      customerRequests: project?.customerRequests ?? [],
+      entrancePassword: project?.entrancePassword ?? '',
+      sitePassword: project?.sitePassword ?? ''
     };
 
     // Handle dates - preserve existing dates if not modified

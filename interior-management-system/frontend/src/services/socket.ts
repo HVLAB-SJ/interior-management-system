@@ -1,4 +1,12 @@
 import { io, Socket } from 'socket.io-client';
+import type {
+  ScheduleUpdateData,
+  PaymentRequestData,
+  PaymentStatusUpdateData,
+  MessageData,
+  NotificationData,
+  ActiveUser
+} from '../types/socket';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
@@ -47,70 +55,70 @@ class SocketService {
   }
 
   // Schedule updates
-  emitScheduleUpdate(data: any) {
+  emitScheduleUpdate(data: ScheduleUpdateData) {
     this.socket?.emit('schedule:update', data);
   }
 
-  onScheduleUpdated(callback: (data: any) => void) {
+  onScheduleUpdated(callback: (data: ScheduleUpdateData) => void) {
     this.socket?.on('schedule:updated', callback);
   }
 
   // Payment notifications
-  emitPaymentRequest(data: any) {
+  emitPaymentRequest(data: PaymentRequestData) {
     this.socket?.emit('payment:request', data);
   }
 
-  onNewPayment(callback: (data: any) => void) {
+  onNewPayment(callback: (data: PaymentRequestData) => void) {
     this.socket?.on('payment:new', callback);
   }
 
-  emitPaymentStatusUpdate(data: any) {
+  emitPaymentStatusUpdate(data: PaymentStatusUpdateData) {
     this.socket?.emit('payment:statusUpdate', data);
   }
 
-  onPaymentStatusChanged(callback: (data: any) => void) {
+  onPaymentStatusChanged(callback: (data: PaymentStatusUpdateData) => void) {
     this.socket?.on('payment:statusChanged', callback);
   }
 
-  onPaymentUpdate(callback: (data: any) => void) {
+  onPaymentUpdate(callback: (data: PaymentRequestData) => void) {
     this.socket?.on('payment:update', callback);
   }
 
   // Real-time chat
-  sendMessage(data: any) {
+  sendMessage(data: MessageData) {
     this.socket?.emit('message:send', data);
   }
 
-  onMessageReceive(callback: (data: any) => void) {
+  onMessageReceive(callback: (data: MessageData) => void) {
     this.socket?.on('message:receive', callback);
   }
 
   // Notifications
-  sendNotification(data: any) {
+  sendNotification(data: NotificationData) {
     this.socket?.emit('notification:send', data);
   }
 
-  onNotificationReceive(callback: (data: any) => void) {
+  onNotificationReceive(callback: (data: NotificationData) => void) {
     this.socket?.on('notification:receive', callback);
   }
 
   // Active users
-  onActiveUsers(callback: (users: any[]) => void) {
+  onActiveUsers(callback: (users: ActiveUser[]) => void) {
     this.socket?.on('users:active', callback);
   }
 
   // Generic event listener
-  on(event: string, callback: (...args: any[]) => void) {
+  on(event: string, callback: (...args: unknown[]) => void) {
     this.socket?.on(event, callback);
   }
 
   // Generic event emitter
-  emit(event: string, data: any) {
+  emit(event: string, data: unknown) {
     this.socket?.emit(event, data);
   }
 
   // Remove event listener
-  off(event: string, callback?: (...args: any[]) => void) {
+  off(event: string, callback?: (...args: unknown[]) => void) {
     this.socket?.off(event, callback);
   }
 

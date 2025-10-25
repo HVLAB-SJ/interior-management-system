@@ -65,7 +65,7 @@ const AfterService = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveRequest = async (data: any) => {
+  const handleSaveRequest = async (data: Partial<ASRequest>) => {
     try {
       if (selectedRequest) {
         // Update existing request
@@ -334,7 +334,7 @@ const AfterService = () => {
                       <Calendar className="h-3 w-3" />
                       <span>
                         {request.scheduledVisitDate ? format(request.scheduledVisitDate, 'MM.dd (eee)', { locale: ko }) : '미정'}
-                        {(request as any).scheduledVisitTime && ` ${formatTimeKorean((request as any).scheduledVisitTime)}`}
+                        {request.scheduledVisitTime && ` ${formatTimeKorean(request.scheduledVisitTime)}`}
                       </span>
                     </button>
                   </div>
@@ -459,7 +459,7 @@ const AfterService = () => {
                       <Calendar className="h-4 w-4" />
                       <span>
                         {request.scheduledVisitDate ? format(request.scheduledVisitDate, 'yyyy.MM.dd (eee)', { locale: ko }) : '-'}
-                        {(request as any).scheduledVisitTime && ` ${formatTimeKorean((request as any).scheduledVisitTime)}`}
+                        {request.scheduledVisitTime && ` ${formatTimeKorean(request.scheduledVisitTime)}`}
                       </span>
                     </button>
                   </div>

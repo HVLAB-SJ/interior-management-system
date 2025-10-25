@@ -6,23 +6,24 @@ import { Trash2, Smartphone, Zap } from 'lucide-react';
 import PaymentRequestModal from '../components/PaymentRequestModal';
 import toast from 'react-hot-toast';
 import { useDataStore, type Payment } from '../store/dataStore';
-import { initKakao, sendPaymentNotification } from '../utils/kakao';
+// import { initKakao, sendPaymentNotification } from '../utils/kakao'; // SOLAPI로 대체됨
 import paymentService from '../services/paymentService';
 import { getBankCode } from '../utils/bankCodes';
 
 type TabStatus = 'pending' | 'completed' | 'all';
 
 const Payments = () => {
-  const { payments, loadPaymentsFromAPI, updatePaymentInAPI, addPaymentToAPI } = useDataStore();
+  const { payments, loadPaymentsFromAPI, updatePaymentInAPI, addPaymentToAPI, addExecutionRecord, updateExecutionRecord, executionRecords } = useDataStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<TabStatus>('pending');
   const [showModal, setShowModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
 
-  // Kakao SDK 초기화 및 결제 데이터 로드
+  // 결제 데이터 로드
   useEffect(() => {
-    initKakao();
+    // initKakao(); // SOLAPI 사용으로 제거됨
     loadPaymentsFromAPI().catch(error => {
       console.error('Failed to load payments:', error);
       toast.error('결제 요청 데이터를 불러오는데 실패했습니다');
@@ -85,12 +86,210 @@ const Payments = () => {
 
   const handleStatusChange = async (paymentId: string, newStatus: string) => {
     try {
-      await paymentService.updatePaymentStatus(paymentId, newStatus);
-      await loadPaymentsFromAPI();
-      toast.success(`결제 요청 상태가 변경되었습니다`);
+      // 송금완료 처리 시 실행내역에 추가
+      if (newStatus === 'completed') {
+        const payment = payments.find(p => p.id === paymentId);
+        if (payment) {
+
+          const now = new Date();
+          const materialCost = payment.materialAmount || 0;
+          const laborCost = payment.laborAmount || 0;
+          const totalAmount = payment.amount || 0;
+
+          // 하나의 실행내역에 자재비와 인건비를 모두 포함
+          if (totalAmount > 0) {
+            let totalVat = 0;
+            let materialSupplyAmount = materialCost;
+            let laborSupplyAmount = laborCost;
+
+            if (payment.includesVAT) {
+              // 부가세 포함인 경우: 각각 부가세 역산
+              if (materialCost > 0) {
+                materialSupplyAmount = Math.round(materialCost / 1.1);
+              }
+              if (laborCost > 0) {
+                laborSupplyAmount = Math.round(laborCost / 1.1);
+              }
+              // 전체 부가세 계산
+              totalVat = totalAmount - (materialSupplyAmount + laborSupplyAmount);
+            } else {
+              // 부가세 미포함인 경우: 부가세는 0
+              totalVat = 0;
+            }
+
+            const executionRecord = {
+              id: `exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              project: payment.project,
+              author: payment.requestedBy || '시스템',
+              date: now,
+              process: payment.process,
+              itemName: payment.itemName || payment.purpose || '결제 항목',
+              materialCost: materialSupplyAmount,
+              laborCost: laborSupplyAmount,
+              vatAmount: totalVat,
+              totalAmount: totalAmount,
+              notes: `결제요청 #${paymentId}에서 자동 생성`,
+              paymentId: paymentId,
+              createdAt: now,
+              updatedAt: now
+            };
+            addExecutionRecord(executionRecord);
+          }
+
+          // 상태 업데이트
+          await paymentService.updatePaymentStatus(paymentId, newStatus);
+          await loadPaymentsFromAPI();
+          toast.success('송금완료 처리되고 실행내역에 추가되었습니다');
+        }
+      } else {
+        // 다른 상태 변경의 경우
+        await paymentService.updatePaymentStatus(paymentId, newStatus);
+        await loadPaymentsFromAPI();
+        toast.success('결제 요청 상태가 변경되었습니다');
+      }
     } catch (error) {
       console.error('Failed to update payment status:', error);
       toast.error('상태 변경에 실패했습니다');
+    }
+  };
+
+  // 기존 실행내역의 자재비, 인건비, 부가세를 올바르게 수정
+  const fixExecutionRecords = async () => {
+    if (!window.confirm('기존 실행내역의 자재비, 인건비, 부가세를 올바른 값으로 수정하시겠습니까?\n\n이 작업은 연결된 결제요청 정보를 기반으로 실행내역을 수정합니다.')) {
+      return;
+    }
+
+    setIsMigrating(true);
+    let fixedCount = 0;
+    let createdCount = 0;
+    let skippedCount = 0;
+
+    try {
+      // 송금완료 상태인 모든 결제 찾기
+      const completedPayments = payments.filter(p => p.status === 'completed');
+
+      for (const payment of completedPayments) {
+        // 해당 결제요청과 연결된 실행내역 찾기
+        const linkedRecords = executionRecords.filter(r => r.paymentId === payment.id);
+
+        const materialCost = payment.materialAmount || 0;
+        const laborCost = payment.laborAmount || 0;
+        const now = new Date();
+
+        // 연결된 실행내역이 없으면 새로 생성
+        if (linkedRecords.length === 0 && payment.amount > 0) {
+          let totalVat = 0;
+          let materialSupplyAmount = materialCost;
+          let laborSupplyAmount = laborCost;
+          const totalAmount = payment.amount;
+
+          if (payment.includesVAT) {
+            // 부가세 포함인 경우: 각각 부가세 역산
+            if (materialCost > 0) {
+              materialSupplyAmount = Math.round(materialCost / 1.1);
+            }
+            if (laborCost > 0) {
+              laborSupplyAmount = Math.round(laborCost / 1.1);
+            }
+            // 전체 부가세 계산
+            totalVat = totalAmount - (materialSupplyAmount + laborSupplyAmount);
+          } else {
+            // 부가세 미포함인 경우: 부가세는 0
+            totalVat = 0;
+          }
+
+            // 자재비와 인건비가 모두 0이면서 총액만 있는 경우 - 기본적으로 자재비로 처리
+          if (materialCost === 0 && laborCost === 0) {
+            if (payment.includesVAT) {
+              materialSupplyAmount = Math.round(totalAmount / 1.1);
+              totalVat = totalAmount - materialSupplyAmount;
+            } else {
+              materialSupplyAmount = totalAmount;
+              totalVat = 0;
+            }
+          }
+
+          const executionRecord = {
+            id: `exec-fix-${payment.id}-${Date.now()}`,
+            project: payment.project,
+            author: payment.requestedBy || '시스템',
+            date: payment.requestDate || now,
+            process: payment.process,
+            itemName: payment.itemName || payment.purpose || '결제 항목',
+            materialCost: materialSupplyAmount,
+            laborCost: laborSupplyAmount,
+            vatAmount: totalVat,
+            totalAmount: totalAmount,
+            notes: `결제요청 #${payment.id}에서 수정 생성`,
+            paymentId: payment.id,
+            createdAt: now,
+            updatedAt: now
+          };
+          addExecutionRecord(executionRecord);
+          createdCount++;
+        }
+        // 기존 실행내역이 있는 경우 - 첫번째 기록을 업데이트하고 나머지는 삭제
+        else if (linkedRecords.length > 0) {
+          const firstRecord = linkedRecords[0];
+          let totalVat = 0;
+          let materialSupplyAmount = materialCost;
+          let laborSupplyAmount = laborCost;
+          const totalAmount = payment.amount;
+
+          if (payment.includesVAT) {
+            // 부가세 포함인 경우: 각각 부가세 역산
+            if (materialCost > 0) {
+              materialSupplyAmount = Math.round(materialCost / 1.1);
+            }
+            if (laborCost > 0) {
+              laborSupplyAmount = Math.round(laborCost / 1.1);
+            }
+            // 전체 부가세 계산
+            totalVat = totalAmount - (materialSupplyAmount + laborSupplyAmount);
+          } else {
+            // 부가세 미포함인 경우: 부가세는 0
+            totalVat = 0;
+          }
+
+          // 자재비와 인건비가 모두 0인 경우
+          if (materialCost === 0 && laborCost === 0) {
+            if (payment.includesVAT) {
+              materialSupplyAmount = Math.round(totalAmount / 1.1);
+              totalVat = totalAmount - materialSupplyAmount;
+            } else {
+              materialSupplyAmount = totalAmount;
+              totalVat = 0;
+            }
+          }
+
+          // 첫번째 기록 업데이트
+          updateExecutionRecord(firstRecord.id, {
+            itemName: payment.itemName || payment.purpose || '결제 항목',
+            materialCost: materialSupplyAmount,
+            laborCost: laborSupplyAmount,
+            vatAmount: totalVat,
+            totalAmount: totalAmount,
+            notes: `결제요청 #${payment.id}에서 수정`,
+            updatedAt: now
+          });
+          fixedCount++;
+
+          // 나머지 중복 기록 삭제 (2개 이상일 경우)
+          // Note: removeExecutionRecord function would be needed in dataStore
+        } else {
+          skippedCount++;
+        }
+
+        // 진행 상황을 위한 짧은 대기
+        await new Promise(resolve => setTimeout(resolve, 30));
+      }
+
+      toast.success(`수정 완료!\n수정: ${fixedCount}건\n생성: ${createdCount}건\n건너뜀: ${skippedCount}건`);
+    } catch (error) {
+      console.error('Fix execution records failed:', error);
+      toast.error('실행내역 수정 중 오류가 발생했습니다');
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -121,7 +320,8 @@ const Payments = () => {
     // 검색 필터
     if (searchTerm) {
       filtered = filtered.filter(payment =>
-        payment.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (payment.itemName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        (payment.purpose?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
         payment.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
         payment.requestedBy.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -159,15 +359,27 @@ const Payments = () => {
       {/* Header */}
       <div className="flex items-center justify-between lg:justify-start">
         <h1 className="text-xl md:text-2xl font-bold text-gray-900">결제 요청 관리</h1>
-        <button
-          onClick={() => {
-            setSelectedPayment(null);
-            setShowModal(true);
-          }}
-          className="hidden lg:inline-flex btn btn-primary px-4 py-2 ml-auto"
-        >
-          + 새 결제요청
-        </button>
+        <div className="hidden lg:flex items-center gap-3 ml-auto">
+          {/* 송금완료 내역이 있을 때만 실행내역 수정 버튼 표시 */}
+          {payments.filter(p => p.status === 'completed').length > 0 && (
+            <button
+              onClick={fixExecutionRecords}
+              disabled={isMigrating}
+              className="btn btn-outline px-4 py-2 text-sm border-gray-600 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            >
+              {isMigrating ? '처리 중...' : '실행내역 정리'}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setSelectedPayment(null);
+              setShowModal(true);
+            }}
+            className="btn btn-primary px-4 py-2"
+          >
+            + 새 결제요청
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -234,7 +446,7 @@ const Payments = () => {
                   </div>
 
                   <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2 md:mb-3 break-words">
-                    {payment.purpose || `${getCategoryLabel(payment.category)} 결제`}
+                    {payment.itemName || payment.purpose || `${getCategoryLabel(payment.category)} 결제`}
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-xs md:text-sm mb-3 md:mb-4">
@@ -329,7 +541,7 @@ const Payments = () => {
                                 accountNumber: accountNumber,
                                 accountHolder: accountHolder,
                                 amount: payment.amount,
-                                purpose: payment.purpose || `${payment.project} 결제`
+                                purpose: payment.itemName || payment.purpose || `${payment.project} 결제`
                               })
                             });
 
@@ -396,7 +608,7 @@ const Payments = () => {
                             try {
                               document.execCommand('copy');
                               toast.success('계좌정보가 복사되었습니다');
-                            } catch (err) {
+                            } catch {
                               toast.error('계좌정보 복사 실패');
                             }
 
@@ -420,7 +632,7 @@ const Payments = () => {
                   )}
 
                   <button
-                    onClick={() => handleDelete(payment.id, payment.purpose || getCategoryLabel(payment.category))}
+                    onClick={() => handleDelete(payment.id, payment.itemName || payment.purpose || getCategoryLabel(payment.category))}
                     className="text-xs md:text-sm px-3 md:px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium flex items-center justify-center whitespace-nowrap"
                     title="삭제"
                   >
@@ -489,22 +701,11 @@ const Payments = () => {
 
                 await addPaymentToAPI(newPayment);
 
-                // 모든 긴급도에 대해 카카오톡 알림 전송
-                try {
-                  await sendPaymentNotification({
-                    purpose: data.purpose || `${data.category === 'material' ? '자재' : '인건비'} 결제`,
-                    amount: Number(data.amount),
-                    project: data.projectId,
-                    requestedBy: data.requestedBy,
-                    urgency: data.urgency,
-                    process: data.process,
-                    itemName: data.itemName
-                  });
-                  toast.success('결제 요청이 등록되고 카카오톡 공유 팝업이 열렸습니다.');
-                } catch (kakaoError: any) {
-                  console.error('Kakao notification error:', kakaoError);
-                  toast.success('결제 요청이 등록되었습니다.');
-                }
+                // SOLAPI로 알림톡이 백엔드에서 자동 발송됨
+                const urgencyMessage = data.urgency === 'urgent' ?
+                  '결제 요청이 등록되었습니다. 긴급 알림톡과 SMS가 발송됩니다.' :
+                  '결제 요청이 등록되었습니다. 알림톡이 발송됩니다.';
+                toast.success(urgencyMessage);
               }
               setShowModal(false);
               setSelectedPayment(null);

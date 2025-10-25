@@ -112,7 +112,7 @@ const projectService = {
   createProject: async (data: ProjectData): Promise<ProjectResponse> => {
     // Convert frontend format to backend format
     // Backend expects: client (string), location (string), startDate/endDate (YYYY-MM-DD), manager (string)
-    const backendData: any = {
+    const backendData: Record<string, unknown> = {
       name: data.name,
       client: typeof data.client === 'string' ? data.client : data.client.name,
       location: typeof data.location === 'string' ? data.location : data.location.address,
@@ -142,7 +142,7 @@ const projectService = {
   updateProject: async (id: string, data: Partial<ProjectData>): Promise<ProjectResponse> => {
     // Convert frontend format to backend format
     // Backend expects: client (string), location (string), startDate/endDate (YYYY-MM-DD), manager (string)
-    const backendData: any = {};
+    const backendData: Record<string, unknown> = {};
 
     if (data.name !== undefined) backendData.name = data.name;
     if (data.client !== undefined) {
@@ -199,9 +199,10 @@ const projectService = {
     try {
       const response = await api.put(`/projects/${id}`, backendData);
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
+      const apiError = error as { response?: { data?: unknown } };
       console.error('[projectService.updateProject] Error:', error);
-      console.error('[projectService.updateProject] Error response:', error.response?.data);
+      console.error('[projectService.updateProject] Error response:', apiError.response?.data);
       throw error;
     }
   },

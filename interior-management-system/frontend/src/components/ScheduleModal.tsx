@@ -4,21 +4,55 @@ import { X, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDataStore } from '../store/dataStore';
 
+interface ScheduleEvent {
+  id?: string;
+  title: string;
+  start: Date;
+  end: Date;
+  projectId?: string;
+  projectName?: string;
+  assignedTo?: string[];
+  attendees?: string[];
+  description?: string;
+  time?: string;
+  originalTitle?: string;
+  mergedEventIds?: string[];
+  isASVisit?: boolean;
+}
+
+interface SlotInfo {
+  start: Date;
+  end: Date;
+}
+
+interface ScheduleFormData {
+  projectId: string;
+  title: string;
+  date: string;
+  description?: string;
+}
+
 interface ScheduleModalProps {
-  event: any;
-  slotInfo: any;
+  event: ScheduleEvent | null;
+  slotInfo: SlotInfo | null;
   defaultProjectName?: string;
   onClose: () => void;
-  onSave: (event: any) => void;
+  onSave: (event: ScheduleEvent) => void;
   onDelete: (id: string) => void;
 }
 
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
 
 const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, onDelete }: ScheduleModalProps) => {
+  // localStorage에서 마지막 선택한 프로젝트 ID 가져오기
+  const getLastProjectId = () => {
+    const lastProjectId = localStorage.getItem('lastSelectedProjectId');
+    return lastProjectId || '';
+  };
+
   const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm({
     defaultValues: {
-      projectId: '',
+      projectId: getLastProjectId(), // 마지막 선택한 프로젝트를 기본값으로
       title: '',
       date: '',
       description: ''
@@ -141,9 +175,10 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
       // 새로운 일정 추가 모드 (event가 없고 slotInfo만 있을 때)
       console.log('🟢 New schedule from slot:', slotInfo);
 
-      // 폼 리셋
+      // 폼 리셋 (프로젝트 ID는 마지막 선택한 값 유지)
+      const lastProjectId = localStorage.getItem('lastSelectedProjectId') || '';
       reset({
-        projectId: '',
+        projectId: lastProjectId,
         title: '',
         date: format(slotInfo.start, 'yyyy-MM-dd'),
         description: ''
@@ -204,7 +239,7 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     setSelectedMembers(prev => prev.filter(m => m !== member));
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: ScheduleFormData) => {
     console.log('🔴 Form onSubmit called with data:', data);
     console.log('🔴 customProjectName:', customProjectName);
     console.log('🔴 selectedMembers:', selectedMembers);
@@ -212,6 +247,11 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     console.log('🔴 timePeriod:', timePeriod, 'timeHour:', timeHour, 'timeMinute:', timeMinute);
     console.log('🔴 Available projects:', projects.map(p => ({ id: p.id, name: p.name, idType: typeof p.id })));
     console.log('🔴 Merged event IDs:', event?.mergedEventIds);
+
+    // 선택한 프로젝트 ID를 localStorage에 저장 (custom이 아닌 경우만)
+    if (data.projectId && data.projectId !== 'custom') {
+      localStorage.setItem('lastSelectedProjectId', data.projectId);
+    }
 
     // 제목에서 시간 텍스트 제거 (혹시 남아있을 경우를 대비)
     const timePattern = / - (오전|오후) \d{1,2}시$/;
@@ -258,21 +298,16 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
     }
 
     // 병합된 이벤트나 단일 이벤트 처리
-    const newEvent = {
+    const newEvent: ScheduleEvent = {
       ...event,
       title: cleanedTitle,  // 정리된 제목 사용
       start: eventDate,
       end: eventDate,
       projectId: projectId,
       projectName: projectName,
-      type: 'other',
-      phase: '',
-      priority: 'medium',
       assignedTo: selectedMembers,
-      location: '',
       description: data.description || '',
       time: timeString,
-      color: '#6B7280',
       mergedEventIds: event?.mergedEventIds // 병합된 ID들 유지
     };
 
@@ -306,6 +341,12 @@ const ScheduleModal = ({ event, slotInfo, defaultProjectName, onClose, onSave, o
             <select
               {...register('projectId', { required: '프로젝트를 선택하세요' })}
               className="input w-full"
+              onChange={(e) => {
+                // 프로젝트 선택 시 즉시 localStorage에 저장
+                if (e.target.value && e.target.value !== 'custom') {
+                  localStorage.setItem('lastSelectedProjectId', e.target.value);
+                }
+              }}
             >
               <option value="">선택하세요</option>
               {projects

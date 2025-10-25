@@ -15,7 +15,12 @@ export interface PaymentData {
     accountNumber: string;
   };
   notes?: string;
-  attachments?: any[];
+  attachments?: File[];
+  materialAmount?: number;
+  laborAmount?: number;
+  originalLaborAmount?: number;
+  applyTaxDeduction?: boolean;
+  includesVAT?: boolean;
 }
 
 export interface PaymentResponse {
@@ -74,12 +79,12 @@ const paymentService = {
       bank_name: data.bankInfo?.bankName || '',
       account_number: data.bankInfo?.accountNumber || '',
       notes: data.notes || '',
-      itemName: (data as any).itemName || '',
-      materialAmount: (data as any).materialAmount || 0,
-      laborAmount: (data as any).laborAmount || 0,
-      originalLaborAmount: (data as any).originalLaborAmount || 0,
-      applyTaxDeduction: (data as any).applyTaxDeduction || false,
-      includesVAT: (data as any).includesVAT || false
+      itemName: data.itemName || '',
+      materialAmount: data.materialAmount || 0,
+      laborAmount: data.laborAmount || 0,
+      originalLaborAmount: data.originalLaborAmount || 0,
+      applyTaxDeduction: data.applyTaxDeduction || false,
+      includesVAT: data.includesVAT || false
     };
     console.log('[paymentService.createPayment] Sending to backend:', requestData);
     const response = await api.post('/payments', requestData);
@@ -87,9 +92,9 @@ const paymentService = {
   },
 
   // Update payment
-  updatePayment: async (id: string, data: Partial<any>): Promise<PaymentResponse> => {
+  updatePayment: async (id: string, data: Partial<PaymentData>): Promise<PaymentResponse> => {
     // Convert to backend format (camelCase -> snake_case)
-    const backendData: any = {};
+    const backendData: Record<string, unknown> = {};
     if (data.purpose !== undefined) backendData.description = data.purpose;
     if (data.amount !== undefined) backendData.amount = data.amount;
     if (data.process !== undefined) backendData.vendor_name = data.process;

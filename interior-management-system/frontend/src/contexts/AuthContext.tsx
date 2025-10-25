@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import type { ApiError } from '../types/forms';
 
 interface User {
   id: string;
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.success) {
         setUser(response.data.user);
       }
-    } catch (error) {
+    } catch {
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
     } finally {
@@ -64,8 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       toast.success(`${user.name}님, 환영합니다!`);
       navigate('/');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '로그인 실패');
+    } catch (error) {
+      const apiError = error as ApiError;
+      toast.error(apiError.response?.data?.message || '로그인 실패');
       throw error;
     }
   };

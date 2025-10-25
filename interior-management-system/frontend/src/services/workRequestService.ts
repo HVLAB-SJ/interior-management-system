@@ -72,7 +72,7 @@ const workRequestService = {
     console.log('[workRequestService.updateWorkRequest] Input data:', data);
 
     // Send all fields to backend (backend accepts camelCase)
-    const backendData: any = {};
+    const backendData: Record<string, unknown> = {};
     if (data.project !== undefined) backendData.project = data.project;
     if (data.requestType !== undefined) backendData.requestType = data.requestType;
     if (data.description !== undefined) backendData.description = data.description;

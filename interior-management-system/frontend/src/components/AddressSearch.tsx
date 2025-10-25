@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, MapPin, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 interface AddressSearchProps {
   value: string;
@@ -22,22 +22,48 @@ interface AddressResult {
   rn?: string;          // 도로명
 }
 
+interface KakaoAddressData {
+  roadAddress: string;
+  jibunAddress?: string;
+  autoJibunAddress?: string;
+  zonecode: string;
+  buildingName?: string;
+  sido?: string;
+  sigungu?: string;
+  bname?: string;
+  roadname?: string;
+}
+
+interface KakaoPostcode {
+  open: () => void;
+  embed: (element: HTMLElement | null) => void;
+}
+
+interface KakaoPostcodeOptions {
+  oncomplete: (data: KakaoAddressData) => void;
+  width?: string;
+  height?: string;
+}
+
+declare global {
+  interface Window {
+    daum?: {
+      Postcode: new (options: KakaoPostcodeOptions) => KakaoPostcode;
+    };
+  }
+}
+
 const AddressSearch = ({
   value,
   detailValue = '',
   onChange,
   onDetailChange,
   placeholder = '주소 검색',
-  required = false,
   error
 }: AddressSearchProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [results, setResults] = useState<AddressResult[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(value);
   const [detailAddress, setDetailAddress] = useState(detailValue);
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const modalRef = useRef<HTMLDivElement>(null);
 
   // 외부 클릭 감지
@@ -65,55 +91,11 @@ const AddressSearch = ({
     setDetailAddress(detailValue);
   }, [detailValue]);
 
-  // 주소 검색 함수 (Kakao 주소 검색 API 사용)
-  const searchAddress = async (query: string) => {
-    if (query.length < 2) {
-      setResults([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Kakao 주소 검색 스크립트가 로드되어 있는지 확인
-      if (!(window as any).daum || !(window as any).daum.Postcode) {
-        // 스크립트 동적 로드
-        await loadKakaoPostcode();
-      }
-
-      // 팝업 대신 임베디드 방식으로 사용
-      new (window as any).daum.Postcode({
-        oncomplete: function(data: any) {
-          const result: AddressResult = {
-            roadAddr: data.roadAddress,
-            jibunAddr: data.jibunAddress || data.autoJibunAddress,
-            zipNo: data.zonecode,
-            bdNm: data.buildingName,
-            siNm: data.sido,
-            sggNm: data.sigungu,
-            emdNm: data.bname,
-            rn: data.roadname
-          };
-
-          handleSelectAddress(result);
-          setIsOpen(false);
-        },
-        width: '100%',
-        height: '100%'
-      }).embed(document.getElementById('address-search-container'));
-
-    } catch (error) {
-      console.error('주소 검색 오류:', error);
-      // 대체 방안: 간단한 텍스트 입력
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Kakao Postcode 스크립트 로드
   const loadKakaoPostcode = () => {
     return new Promise((resolve, reject) => {
-      if ((window as any).daum && (window as any).daum.Postcode) {
+      if (window.daum && window.daum.Postcode) {
         resolve(true);
         return;
       }
@@ -127,21 +109,6 @@ const AddressSearch = ({
     });
   };
 
-  // 검색어 입력 디바운싱
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-
-    // 이전 타이머 취소
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // 새 타이머 설정
-    searchTimeoutRef.current = setTimeout(() => {
-      searchAddress(query);
-    }, 500);
-  };
 
   // 주소 선택
   const handleSelectAddress = (address: AddressResult) => {
@@ -149,8 +116,6 @@ const AddressSearch = ({
     setSelectedAddress(fullAddress);
     onChange(fullAddress, detailAddress);
     setIsOpen(false);
-    setSearchQuery('');
-    setResults([]);
   };
 
   // 상세주소 변경
@@ -170,26 +135,28 @@ const AddressSearch = ({
   const openKakaoSearch = async () => {
     try {
       // Kakao 주소 검색 스크립트가 로드되어 있는지 확인
-      if (!(window as any).daum || !(window as any).daum.Postcode) {
+      if (!window.daum || !window.daum.Postcode) {
         await loadKakaoPostcode();
       }
 
-      new (window as any).daum.Postcode({
-        oncomplete: function(data: any) {
-          const result: AddressResult = {
-            roadAddr: data.roadAddress,
-            jibunAddr: data.jibunAddress || data.autoJibunAddress,
-            zipNo: data.zonecode,
-            bdNm: data.buildingName,
-            siNm: data.sido,
-            sggNm: data.sigungu,
-            emdNm: data.bname,
-            rn: data.roadname
-          };
+      if (window.daum) {
+        new window.daum.Postcode({
+          oncomplete: function(data: KakaoAddressData) {
+            const result: AddressResult = {
+              roadAddr: data.roadAddress,
+              jibunAddr: data.jibunAddress || data.autoJibunAddress || '',
+              zipNo: data.zonecode,
+              bdNm: data.buildingName,
+              siNm: data.sido,
+              sggNm: data.sigungu,
+              emdNm: data.bname,
+              rn: data.roadname
+            };
 
-          handleSelectAddress(result);
-        }
-      }).open();
+            handleSelectAddress(result);
+          }
+        }).open();
+      }
     } catch (error) {
       console.error('주소 검색 오류:', error);
       alert('주소 검색 서비스를 사용할 수 없습니다. 직접 입력해주세요.');

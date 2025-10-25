@@ -99,7 +99,7 @@ export function getBankCode(bankName: string): string {
  * 은행 코드로 은행명 조회
  */
 export function getBankName(bankCode: string): string {
-  const entry = Object.entries(BANK_CODES).find(([_, code]) => code === bankCode);
+  const entry = Object.entries(BANK_CODES).find(([, code]) => code === bankCode);
   return entry ? entry[0] : bankCode;
 }
 
@@ -134,7 +134,7 @@ export function getSupportedBanks(): Array<{code: string, name: string}> {
 /**
  * 계좌번호 포맷팅 (하이픈 자동 추가)
  */
-export function formatAccountNumber(accountNumber: string, bankCode: string): string {
+export function formatAccountNumber(accountNumber: string): string {
   if (!accountNumber) return '';
 
   // 숫자만 추출

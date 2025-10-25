@@ -22,8 +22,6 @@ const Login = () => {
     setLoading(true);
     try {
       await login(data.username, data.password);
-    } catch (error) {
-      // Error is handled in AuthContext
     } finally {
       setLoading(false);
     }

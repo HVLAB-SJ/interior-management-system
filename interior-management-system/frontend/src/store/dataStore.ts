@@ -359,11 +359,11 @@ export const useDataStore = create<DataStore>()(
         bankInfo: payment.bankInfo,
         notes: payment.notes,
         attachments: [],
-        materialAmount: (payment as any).materialAmount || 0,
-        laborAmount: (payment as any).laborAmount || 0,
-        originalLaborAmount: (payment as any).originalLaborAmount || 0,
-        applyTaxDeduction: (payment as any).applyTaxDeduction || false,
-        includesVAT: (payment as any).includesVAT || false
+        materialAmount: payment.materialAmount || 0,
+        laborAmount: payment.laborAmount || 0,
+        originalLaborAmount: payment.originalLaborAmount || 0,
+        applyTaxDeduction: payment.applyTaxDeduction || false,
+        includesVAT: payment.includesVAT || false
       };
       console.log('[addPaymentToAPI] Sending payment data:', paymentData);
       await paymentService.createPayment(paymentData);
@@ -511,7 +511,7 @@ export const useDataStore = create<DataStore>()(
         location: apiSchedule.location,
         attendees: apiSchedule.assigneeNames || apiSchedule.assignedTo?.map(a => typeof a === 'object' ? a.name : a) || [],
         description: apiSchedule.description,
-        time: (apiSchedule as any).time
+        time: apiSchedule.time
       };
 
       set((state) => ({ schedules: [newSchedule, ...state.schedules] }));
@@ -553,12 +553,12 @@ export const useDataStore = create<DataStore>()(
       set((state) => ({
         schedules: state.schedules.map((s) => (s.id === id ? schedule : s))
       }));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to update schedule in API:', error);
       console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
+        message: error instanceof Error ? error.message : 'Unknown error',
+        response: error && typeof error === 'object' && 'response' in error ? (error as { response?: { data?: unknown } }).response?.data : undefined,
+        status: error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response?.status : undefined
       });
       throw error;
     }
@@ -595,19 +595,19 @@ export const useDataStore = create<DataStore>()(
         manager: p.manager || '미지정',
         team: p.fieldManagers?.map(fm => typeof fm === 'object' ? fm.name : fm) || [],
         description: p.description || '',
-        meetingNotes: (p as any).meetingNotes?.map((note: any) => ({
+        meetingNotes: (p.meetingNotes as unknown[])?.map((note: { id: string; content: string; date: string }) => ({
           id: note.id,
           content: note.content,
           date: new Date(note.date)
         })) || [],
-        customerRequests: (p as any).customerRequests?.map((req: any) => ({
+        customerRequests: (p.customerRequests as unknown[])?.map((req: { id: string; content: string; completed: boolean; createdAt: string }) => ({
           id: req.id,
           content: req.content,
           completed: req.completed,
           createdAt: new Date(req.createdAt)
         })) || [],
-        entrancePassword: (p as any).entrancePassword || '',
-        sitePassword: (p as any).sitePassword || ''
+        entrancePassword: (p.entrancePassword as string | undefined) || '',
+        sitePassword: (p.sitePassword as string | undefined) || ''
       }));
       set({ projects });
     } catch (error) {
@@ -650,19 +650,19 @@ export const useDataStore = create<DataStore>()(
         manager: apiProject.manager || '미지정',
         team: apiProject.fieldManagers?.map(fm => typeof fm === 'object' ? fm.name : fm) || [],
         description: apiProject.description || '',
-        meetingNotes: (apiProject as any).meetingNotes?.map((note: any) => ({
+        meetingNotes: (apiProject as { meetingNotes?: Array<{ id: string; content: string; date: string | Date }> }).meetingNotes?.map((note) => ({
           id: note.id,
           content: note.content,
           date: new Date(note.date)
         })) || [],
-        customerRequests: (apiProject as any).customerRequests?.map((req: any) => ({
+        customerRequests: (apiProject as { customerRequests?: Array<{ id: string; content: string; completed: boolean; createdAt: string | Date }> }).customerRequests?.map((req) => ({
           id: req.id,
           content: req.content,
           completed: req.completed,
           createdAt: new Date(req.createdAt)
         })) || [],
-        entrancePassword: (apiProject as any).entrancePassword || '',
-        sitePassword: (apiProject as any).sitePassword || ''
+        entrancePassword: (apiProject.entrancePassword as string | undefined) || '',
+        sitePassword: (apiProject.sitePassword as string | undefined) || ''
       };
 
       set((state) => ({ projects: [newProject, ...state.projects] }));
@@ -693,19 +693,19 @@ export const useDataStore = create<DataStore>()(
         manager: apiProject.manager || '미지정',
         team: apiProject.fieldManagers?.map(fm => typeof fm === 'object' ? fm.name : fm) || [],
         description: apiProject.description || '',
-        meetingNotes: (apiProject as any).meetingNotes?.map((note: any) => ({
+        meetingNotes: (apiProject as { meetingNotes?: Array<{ id: string; content: string; date: string | Date }> }).meetingNotes?.map((note) => ({
           id: note.id,
           content: note.content,
           date: new Date(note.date)
         })) || [],
-        customerRequests: (apiProject as any).customerRequests?.map((req: any) => ({
+        customerRequests: (apiProject as { customerRequests?: Array<{ id: string; content: string; completed: boolean; createdAt: string | Date }> }).customerRequests?.map((req) => ({
           id: req.id,
           content: req.content,
           completed: req.completed,
           createdAt: new Date(req.createdAt)
         })) || [],
-        entrancePassword: (apiProject as any).entrancePassword || '',
-        sitePassword: (apiProject as any).sitePassword || ''
+        entrancePassword: (apiProject.entrancePassword as string | undefined) || '',
+        sitePassword: (apiProject.sitePassword as string | undefined) || ''
       };
 
       set((state) => ({
@@ -830,7 +830,7 @@ export const useDataStore = create<DataStore>()(
   loadConstructionPaymentsFromAPI: async () => {
     try {
       const apiConstructionPayments = await constructionPaymentService.getAllConstructionPayments();
-      const constructionPayments: ConstructionPaymentRecord[] = apiConstructionPayments.map((cp: any) => {
+      const constructionPayments: ConstructionPaymentRecord[] = apiConstructionPayments.map((cp) => {
         // Convert expectedPaymentDates from strings to Date objects
         let expectedPaymentDates = undefined;
         if (cp.expectedPaymentDates) {
@@ -851,7 +851,7 @@ export const useDataStore = create<DataStore>()(
           vatPercentage: cp.vatPercentage,
           vatAmount: cp.vatAmount,
           expectedPaymentDates,
-          payments: cp.payments?.map((p: any) => {
+          payments: cp.payments?.map((p) => {
             // Safe date conversion - fallback to current date if invalid
             const dateValue = p.date ? new Date(p.date) : new Date();
             const validDate = isNaN(dateValue.getTime()) ? new Date() : dateValue;
@@ -875,7 +875,7 @@ export const useDataStore = create<DataStore>()(
 
   addConstructionPaymentToAPI: async (payment: ConstructionPaymentRecord) => {
     try {
-      const apiPayment = await constructionPaymentService.createConstructionPayment(payment as any);
+      const apiPayment = await constructionPaymentService.createConstructionPayment(payment);
 
       const newPayment: ConstructionPaymentRecord = {
         id: apiPayment._id,
@@ -885,7 +885,7 @@ export const useDataStore = create<DataStore>()(
         vatType: apiPayment.vatType,
         vatPercentage: apiPayment.vatPercentage,
         vatAmount: apiPayment.vatAmount,
-        payments: apiPayment.payments?.map((p: any) => {
+        payments: apiPayment.payments?.map((p) => {
           // Safe date conversion - fallback to current date if invalid
           const dateValue = p.date ? new Date(p.date) : new Date();
           const validDate = isNaN(dateValue.getTime()) ? new Date() : dateValue;
@@ -909,7 +909,7 @@ export const useDataStore = create<DataStore>()(
 
   updateConstructionPaymentInAPI: async (id: string, updatedPayment: Partial<ConstructionPaymentRecord>) => {
     try {
-      const apiPayment = await constructionPaymentService.updateConstructionPayment(id, updatedPayment as any);
+      const apiPayment = await constructionPaymentService.updateConstructionPayment(id, updatedPayment);
 
       // Convert expectedPaymentDates from strings to Date objects
       let expectedPaymentDates = undefined;
@@ -931,7 +931,7 @@ export const useDataStore = create<DataStore>()(
         vatPercentage: apiPayment.vatPercentage,
         vatAmount: apiPayment.vatAmount,
         expectedPaymentDates,
-        payments: apiPayment.payments?.map((p: any) => ({
+        payments: apiPayment.payments?.map((p) => ({
           type: p.type || p.types?.[0] || '계약금',
           amount: p.amount,
           date: new Date(p.date),
@@ -963,7 +963,7 @@ export const useDataStore = create<DataStore>()(
   loadASRequestsFromAPI: async () => {
     try {
       const apiASRequests = await asRequestService.getAllASRequests();
-      const asRequests: ASRequest[] = apiASRequests.map((req: any) => ({
+      const asRequests: ASRequest[] = apiASRequests.map((req) => ({
         id: req._id,
         project: req.project,
         client: req.client,
@@ -987,7 +987,7 @@ export const useDataStore = create<DataStore>()(
 
   addASRequestToAPI: async (asRequest: ASRequest) => {
     try {
-      const apiASRequest = await asRequestService.createASRequest(asRequest as any);
+      const apiASRequest = await asRequestService.createASRequest(asRequest);
 
       const newASRequest: ASRequest = {
         id: apiASRequest._id,
@@ -1014,7 +1014,7 @@ export const useDataStore = create<DataStore>()(
 
   updateASRequestInAPI: async (id: string, updatedASRequest: Partial<ASRequest>) => {
     try {
-      const apiASRequest = await asRequestService.updateASRequest(id, updatedASRequest as any);
+      const apiASRequest = await asRequestService.updateASRequest(id, updatedASRequest);
 
       const asRequest: ASRequest = {
         id: apiASRequest._id,
@@ -1061,7 +1061,7 @@ export const useDataStore = create<DataStore>()(
           const { state } = JSON.parse(str);
 
           // Date 문자열을 Date 객체로 변환 및 budget → contractAmount 마이그레이션
-          const projects = state.projects?.map((p: any) => ({
+          const projects = state.projects?.map((p: { id: string; name: string; client: string; startDate?: string; endDate?: string; contractAmount?: number; budget?: number; [key: string]: unknown }) => ({
             ...p,
             startDate: p.startDate ? new Date(p.startDate) : undefined,
             endDate: p.endDate ? new Date(p.endDate) : undefined,
@@ -1069,22 +1069,22 @@ export const useDataStore = create<DataStore>()(
             contractAmount: p.contractAmount !== undefined ? p.contractAmount : p.budget || 0,
           })) || [];
 
-          const existingConstructionPayments = state.constructionPayments?.map((cp: any) => ({
+          const existingConstructionPayments = state.constructionPayments?.map((cp: { id: string; vatType?: string; vatPercentage?: number; vatAmount?: number; payments?: { date: string; [key: string]: unknown }[]; [key: string]: unknown }) => ({
             ...cp,
             vatType: cp.vatType || 'percentage',
             vatPercentage: cp.vatPercentage ?? 100,
             vatAmount: cp.vatAmount ?? 0,
-            payments: cp.payments?.map((p: any) => ({
+            payments: cp.payments?.map((p) => ({
               ...p,
               date: new Date(p.date)
             })) || []
           })) || [];
 
           // 프로젝트에 대응하는 공사대금 레코드가 없으면 자동 생성
-          const existingPaymentIds = new Set(existingConstructionPayments.map((cp: any) => cp.id));
+          const existingPaymentIds = new Set(existingConstructionPayments.map((cp) => cp.id));
           const missingPayments = projects
-            .filter((project: any) => !existingPaymentIds.has(project.id))
-            .map((project: any) => ({
+            .filter((project) => !existingPaymentIds.has(project.id))
+            .map((project) => ({
               id: project.id,
               project: project.name,
               client: project.client,
@@ -1101,29 +1101,29 @@ export const useDataStore = create<DataStore>()(
             state: {
               ...state,
               projects,
-              schedules: state.schedules?.map((s: any) => ({
+              schedules: state.schedules?.map((s: { start: string; end: string; [key: string]: unknown }) => ({
                 ...s,
                 start: new Date(s.start),
                 end: new Date(s.end)
               })) || [],
-              payments: state.payments?.map((p: any) => ({
+              payments: state.payments?.map((p: { requestDate: string; approvalDate?: string; [key: string]: unknown }) => ({
                 ...p,
                 requestDate: new Date(p.requestDate),
                 approvalDate: p.approvalDate ? new Date(p.approvalDate) : undefined
               })) || [],
-              contractors: state.contractors?.map((c: any) => ({
+              contractors: state.contractors?.map((c: { createdAt: string; updatedAt: string; [key: string]: unknown }) => ({
                 ...c,
                 createdAt: new Date(c.createdAt),
                 updatedAt: new Date(c.updatedAt)
               })) || [],
               constructionPayments,
-              asRequests: state.asRequests?.map((req: any) => ({
+              asRequests: state.asRequests?.map((req: { requestDate: string; scheduledVisitDate?: string; completionDate?: string; [key: string]: unknown }) => ({
                 ...req,
                 requestDate: new Date(req.requestDate),
                 scheduledVisitDate: req.scheduledVisitDate ? new Date(req.scheduledVisitDate) : undefined,
                 completionDate: req.completionDate ? new Date(req.completionDate) : undefined
               })) || [],
-              executionRecords: state.executionRecords?.map((record: any) => ({
+              executionRecords: state.executionRecords?.map((record: { date: string; createdAt: string; updatedAt: string; [key: string]: unknown }) => ({
                 ...record,
                 date: new Date(record.date),
                 createdAt: new Date(record.createdAt),

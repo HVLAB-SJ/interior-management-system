@@ -50,7 +50,7 @@ const additionalWorkService = {
   // Update additional work
   updateAdditionalWork: async (id: string, data: Partial<AdditionalWorkData>): Promise<AdditionalWorkResponse> => {
     // Send project name (not project_id) - backend will look up the ID
-    const backendData: any = {};
+    const backendData: Record<string, unknown> = {};
     if (data.project !== undefined) backendData.project = data.project;  // Send project name
     if (data.description !== undefined) backendData.description = data.description;
     if (data.amount !== undefined) backendData.amount = data.amount;

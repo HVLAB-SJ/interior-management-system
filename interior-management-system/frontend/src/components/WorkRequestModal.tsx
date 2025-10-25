@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { X, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { useDataStore } from '../store/dataStore';
+import { useDataStore, type WorkRequest } from '../store/dataStore';
 import { useAuth } from '../contexts/AuthContext';
+import type { WorkRequestFormData } from '../types/forms';
 
 interface WorkRequestModalProps {
-  request: any;
+  request: WorkRequest | null;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: WorkRequestFormData) => void;
 }
 
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현', '디자인팀', '현장팀'];
@@ -49,7 +50,7 @@ const WorkRequestModal = ({ request, onClose, onSave }: WorkRequestModalProps) =
     }
   }, [request, user, setValue]);
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: Partial<WorkRequestFormData>) => {
     console.log('📝 WorkRequestModal onSubmit - Raw data:', data);
 
     const formData = {

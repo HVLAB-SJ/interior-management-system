@@ -1,7 +1,40 @@
 // Kakao SDK 타입 정의
+interface KakaoShare {
+  sendDefault: (options: {
+    objectType: string;
+    text: string;
+    link: {
+      mobileWebUrl: string;
+      webUrl: string;
+    };
+    buttons?: Array<{
+      title: string;
+      link: {
+        mobileWebUrl: string;
+        webUrl: string;
+      };
+    }>;
+  }) => void;
+}
+
+interface KakaoAuth {
+  login: (options: {
+    success: (authObj: unknown) => void;
+    fail: (err: unknown) => void;
+  }) => void;
+  getAccessToken: () => string | null;
+}
+
+interface KakaoSDK {
+  init: (appKey: string) => void;
+  isInitialized: () => boolean;
+  Share: KakaoShare;
+  Auth: KakaoAuth;
+}
+
 declare global {
   interface Window {
-    Kakao: any;
+    Kakao: KakaoSDK;
   }
 }
 
@@ -106,11 +139,11 @@ export const loginKakao = () => {
     }
 
     window.Kakao.Auth.login({
-      success: (authObj: any) => {
+      success: (authObj) => {
         console.log('Kakao login success:', authObj);
         resolve(authObj);
       },
-      fail: (err: any) => {
+      fail: (err) => {
         console.error('Kakao login failed:', err);
         reject(err);
       },

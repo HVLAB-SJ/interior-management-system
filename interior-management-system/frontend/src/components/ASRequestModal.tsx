@@ -12,15 +12,28 @@ interface ASRequest {
   entrancePassword: string;
   description: string;
   scheduledVisitDate?: Date;
+  scheduledVisitTime?: string;
   assignedTo?: string[];
   completionDate?: Date;
   notes?: string;
 }
 
+interface ASRequestFormData {
+  project: string;
+  client: string;
+  requestDate: Date;
+  siteAddress: string;
+  entrancePassword?: string;
+  description?: string;
+  scheduledVisitDate?: Date;
+  scheduledVisitTime?: string;
+  assignedTo?: string[];
+}
+
 interface ASRequestModalProps {
   request: ASRequest | null;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: ASRequestFormData) => void;
 }
 
 const TEAM_MEMBERS = ['상준', '신애', '재천', '민기', '재성', '재현'];
@@ -50,9 +63,9 @@ const ASRequestModal = ({ request, onClose, onSave }: ASRequestModalProps) => {
       if (request.scheduledVisitDate) {
         setValue('scheduledVisitDate', request.scheduledVisitDate.toISOString().split('T')[0]);
       }
-      if ((request as any).scheduledVisitTime) {
+      if (request.scheduledVisitTime) {
         // Parse existing time (HH:mm format)
-        const [hoursStr, minutesStr] = (request as any).scheduledVisitTime.split(':');
+        const [hoursStr, minutesStr] = request.scheduledVisitTime.split(':');
         const hours = parseInt(hoursStr, 10);
         const minutes = parseInt(minutesStr, 10);
 
@@ -94,7 +107,7 @@ const ASRequestModal = ({ request, onClose, onSave }: ASRequestModalProps) => {
     setSelectedMembers(prev => prev.filter(m => m !== member));
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: ASRequestFormData) => {
     // Convert time to HH:mm format
     let hours24 = visitTimeHour;
     if (visitTimePeriod === '오후' && visitTimeHour !== 12) {
@@ -146,7 +159,7 @@ const ASRequestModal = ({ request, onClose, onSave }: ASRequestModalProps) => {
                   if (selectedProject) {
                     setValue('client', selectedProject.client);
                     setValue('siteAddress', selectedProject.location);
-                    setValue('entrancePassword', (selectedProject as any).entrancePassword || '');
+                    setValue('entrancePassword', selectedProject.entrancePassword || '');
                   }
                 }}
               >

@@ -4,10 +4,39 @@ import { format } from 'date-fns';
 import { useDataStore } from '../store/dataStore';
 import toast from 'react-hot-toast';
 
+interface ExecutionRecord {
+  id?: string;
+  project: string;
+  date: string | Date;
+  process: string;
+  itemName: string;
+  materialCost: number;
+  laborCost: number;
+  vatAmount: number;
+  notes: string;
+  images: string[];
+  totalAmount?: number;
+  createdAt?: string;
+}
+
+interface ExecutionRecordFormData {
+  project: string;
+  date: string;
+  process: string;
+  itemName: string;
+  materialCost: number;
+  laborCost: number;
+  vatAmount: number;
+  notes: string;
+  images: string[];
+  totalAmount: number;
+  createdAt: string;
+}
+
 interface ExecutionRecordModalProps {
-  record?: any;
+  record?: ExecutionRecord;
   onClose: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: ExecutionRecordFormData) => void;
 }
 
 const ExecutionRecordModal = ({ record, onClose, onSave }: ExecutionRecordModalProps) => {
