@@ -380,54 +380,6 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
             </div>
           </div>
 
-          {/* Request Type (Category) - Multiple Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              요청 유형 (중복 선택 가능)
-            </label>
-            <div className="space-y-2">
-              {[
-                { value: 'material', label: '자재비' },
-                { value: 'labor', label: '인건비' },
-                { value: 'equipment', label: '장비' },
-                { value: 'transport', label: '운반비' },
-                { value: 'other', label: '기타' }
-              ].map((type) => (
-                <label key={type.value} className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(type.value)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedCategories(prev => [...prev, type.value]);
-                      } else {
-                        setSelectedCategories(prev => prev.filter(c => c !== type.value));
-                      }
-                    }}
-                    className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-600"
-                  />
-                  <span className="text-sm text-gray-900">{type.label}</span>
-                </label>
-              ))}
-            </div>
-            {selectedCategories.length > 0 && (
-              <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded">
-                <p className="text-xs text-gray-700">
-                  선택된 유형: {selectedCategories.map(c => {
-                    const labels: { [key: string]: string } = {
-                      material: '자재비',
-                      labor: '인건비',
-                      equipment: '장비',
-                      transport: '운반비',
-                      other: '기타'
-                    };
-                    return labels[c] || c;
-                  }).join(', ')}
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* Recommended Contractors */}
           {recommendedContractors.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
