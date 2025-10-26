@@ -877,65 +877,49 @@ const PaymentRequestModal = ({ payment, onClose, onSave }: PaymentRequestModalPr
           </div>
 
           {/* Actions */}
-          <div className="flex justify-between items-center pt-4 border-t">
-            {/* Urgent Request Toggle - Moved to button area */}
-            {!payment && (
-              <div className="flex items-center space-x-3">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isUrgent}
-                    onChange={(e) => setIsUrgent(e.target.checked)}
-                    className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className={`h-4 w-4 ${isUrgent ? 'text-red-600' : 'text-gray-400'}`} />
-                    <span className={`text-sm ${isUrgent ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
-                      긴급 결제
-                    </span>
-                  </div>
-                </label>
-                {isUrgent && (
-                  <span className="text-xs text-red-600">
-                    SMS 추가 발송
-                  </span>
-                )}
-              </div>
-            )}
+          <div className="flex justify-end items-center pt-4 border-t space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-outline"
+            >
+              취소
+            </button>
 
-            <div className="flex space-x-3 ml-auto">
+            {/* 긴급 결제 요청 버튼 - 요청하기 버튼 왼쪽에 작게 */}
+            {!payment && (
               <button
                 type="button"
-                onClick={onClose}
-                className="btn btn-outline"
+                onClick={() => setIsUrgent(!isUrgent)}
+                className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center space-x-1 ${
+                  isUrgent
+                    ? 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
+                    : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                }`}
+                title={isUrgent ? "긴급 해제" : "긴급 설정"}
               >
-                취소
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>{isUrgent ? '긴급' : '일반'}</span>
               </button>
-              {!payment && isUrgent && (
-                <button
-                  type="submit"
-                  className="btn bg-red-600 hover:bg-red-700 text-white"
-                >
-                  긴급 요청하기
-                </button>
-              )}
-              {!payment && !isUrgent && (
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                >
-                  요청하기
-                </button>
-              )}
-              {payment && (
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                >
-                  수정하기
-                </button>
-              )}
-            </div>
+            )}
+
+            {!payment && (
+              <button
+                type="submit"
+                className={`btn ${isUrgent ? 'bg-red-600 hover:bg-red-700 text-white' : 'btn-primary'}`}
+              >
+                {isUrgent ? '긴급 요청하기' : '요청하기'}
+              </button>
+            )}
+
+            {payment && (
+              <button
+                type="submit"
+                className="btn btn-primary"
+              >
+                수정하기
+              </button>
+            )}
           </div>
         </form>
       </div>
